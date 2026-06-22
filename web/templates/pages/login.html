@@ -1,0 +1,49 @@
+{{define "page-login"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Log In — {{.Site.Name}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="login-layout">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" fill="#6366f1" opacity="0.15"/>
+        <circle cx="12" cy="12" r="4" fill="#6366f1"/>
+        <path d="M12 2C6.48 2 2 6.48 2 12" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
+        <path d="M12 22C17.52 22 22 17.52 22 12" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1 class="login-title">Sign in to Relay</h1>
+    <p class="login-subtitle">{{.Site.Name}} admin dashboard</p>
+
+    {{if .Error}}
+    <div class="alert alert-error">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+      </svg>
+      Invalid username or password.
+    </div>
+    {{end}}
+
+    <form method="POST" action="/login" class="login-form">
+      <input type="hidden" name="next" value="{{.Next}}">
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input id="username" type="text" name="username" class="form-input" autofocus autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input id="password" type="password" name="password" class="form-input" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+    </form>
+  </div>
+</body>
+</html>
+{{end}}

@@ -1,0 +1,126 @@
+{{define "page-incidents"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Incidents — {{.Site.Name}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="admin-layout">
+  {{template "admin-nav" (dict "ActivePage" "incidents")}}
+
+  <main class="admin-main">
+    <header class="admin-header">
+      <div>
+        <h1 class="page-title">Incidents</h1>
+        <p class="page-subtitle">Manage and post updates to your status page</p>
+      </div>
+      <button class="btn btn-primary" x-data x-on:click="$dispatch('open-create-modal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        New Incident
+      </button>
+    </header>
+
+    <!-- Incident list -->
+    {{if eq (len .Incidents) 0}}
+    <div class="empty-state">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      <h3>No incidents</h3>
+      <p>All systems operational. Create an incident to post updates to your status page.</p>
+    </div>
+    {{else}}
+    <div class="incident-admin-list">
+      {{range .Incidents}}
+      <div class="incident-admin-card" x-data="{open: false, updateText: ''}">
+        <div class="incident-admin-header">
+          <div class="incident-admin-info">
+            <span class="incident-status-badge badge-{{.Status}}">{{incidentStatusLabel .Status}}</span>
+            <h3 class="incident-admin-title">{{.Title}}</h3>
+            <span class="incident-admin-time text-muted">Started {{formatTime .StartedAt}}</span>
+          </div>
+          <div class="incident-admin-actions">
+            <button class="btn btn-ghost btn-sm" x-on:click="open = !open">
+              <span x-show="!open">Post Update</span>
+              <span x-show="open">Cancel</span>
+            </button>
+            {{if ne .Status "resolved"}}
+            <form method="POST" action="/admin/incidents/{{.ID}}/resolve" style="display:inline">
+              <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Mark as resolved?')">Resolve</button>
+            </form>
+            {{end}}
+          </div>
+        </div>
+
+        {{if .Body.Valid}}
+        <div class="incident-body-preview">{{.Body.String}}</div>
+        {{end}}
+
+        <!-- Update form -->
+        <form method="POST" action="/admin/incidents/{{.ID}}" class="incident-update-form" x-show="open" x-cloak>
+          <textarea name="body" class="form-textarea" rows="3" placeholder="Describe what's happening..." x-model="updateText"></textarea>
+          <div class="form-row" style="align-items:center">
+            <select name="status" class="form-select" style="max-width:200px">
+              <option value="investigating" {{if eq .Status "investigating"}}selected{{end}}>Investigating</option>
+              <option value="identified" {{if eq .Status "identified"}}selected{{end}}>Identified</option>
+              <option value="monitoring" {{if eq .Status "monitoring"}}selected{{end}}>Monitoring</option>
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm" x-bind:disabled="updateText.trim() === ''">Post Update</button>
+          </div>
+        </form>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+
+    <!-- Create incident modal -->
+    <div class="modal-overlay" x-data="{open: false}" x-on:open-create-modal.window="open = true" x-show="open" x-cloak>
+      <div class="modal-card" x-on:click.stop>
+        <div class="modal-header">
+          <h2 class="modal-title">Create Incident</h2>
+          <button class="modal-close" x-on:click="open = false">×</button>
+        </div>
+        <form method="POST" action="/admin/incidents" class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Title <span class="required">*</span></label>
+            <input type="text" name="title" class="form-input" placeholder="e.g. API latency elevated" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+              <option value="investigating">Investigating</option>
+              <option value="identified">Identified</option>
+              <option value="monitoring">Monitoring</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Affected Monitor (optional)</label>
+            <select name="monitor_id" class="form-select">
+              <option value="">— All services —</option>
+              {{range .Monitors}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Initial Message</label>
+            <textarea name="body" class="form-textarea" rows="3" placeholder="We are investigating…"></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" x-on:click="open = false">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create Incident</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</body>
+</html>
+{{end}}

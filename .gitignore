@@ -1,0 +1,31 @@
+# Build output
+relay
+relay.exe
+dist/
+
+# Data directory (SQLite database + WAL files)
+data/
+testdata/
+*.db
+*.db-wal
+*.db-shm
+
+# Environment / secrets
+.env
+
+# Go
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Caddy auto-generated state
+caddy-data/
+caddy-config/

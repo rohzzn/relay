@@ -1,0 +1,155 @@
+{{define "page-status"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Site.Name}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="status-layout">
+
+  <div class="status-container">
+
+    <!-- Header -->
+    <header class="status-header">
+      <div class="status-brand">
+        {{if .Site.Logo}}
+          <img src="{{.Site.Logo}}" alt="{{.Site.Name}}" class="status-logo">
+        {{else}}
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" fill="#6366f1" opacity="0.15"/>
+            <circle cx="12" cy="12" r="4" fill="#6366f1"/>
+            <path d="M12 2C6.48 2 2 6.48 2 12" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 22C17.52 22 22 17.52 22 12" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        {{end}}
+        <span class="status-site-name">{{.Site.Name}}</span>
+      </div>
+    </header>
+
+    <!-- Overall status banner -->
+    {{if eq .OverallStatus "operational"}}
+    <div class="overall-banner banner-operational">
+      <div class="banner-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+      </div>
+      <div>
+        <div class="banner-title">All Systems Operational</div>
+        <div class="banner-subtitle">Everything is running smoothly.</div>
+      </div>
+    </div>
+    {{else if eq .OverallStatus "degraded"}}
+    <div class="overall-banner banner-degraded">
+      <div class="banner-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </div>
+      <div>
+        <div class="banner-title">Partial System Degradation</div>
+        <div class="banner-subtitle">Some services are experiencing issues.</div>
+      </div>
+    </div>
+    {{else}}
+    <div class="overall-banner banner-outage">
+      <div class="banner-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+      </div>
+      <div>
+        <div class="banner-title">Major System Outage</div>
+        <div class="banner-subtitle">We are investigating critical issues.</div>
+      </div>
+    </div>
+    {{end}}
+
+    <!-- Active incidents -->
+    {{if .Incidents}}
+    <section class="status-section">
+      <h2 class="status-section-title">Active Incidents</h2>
+      <div class="incident-list">
+        {{range .Incidents}}
+        <div class="incident-card incident-{{.Status}}">
+          <div class="incident-header">
+            <div class="incident-status-badge badge-{{.Status}}">{{incidentStatusLabel .Status}}</div>
+            <time class="incident-time">{{formatTime .StartedAt}}</time>
+          </div>
+          <h3 class="incident-title">{{.Title}}</h3>
+          {{if .Body.Valid}}
+          <div class="incident-body">{{.Body.String}}</div>
+          {{end}}
+        </div>
+        {{end}}
+      </div>
+    </section>
+    {{end}}
+
+    <!-- Monitor list -->
+    <section class="status-section">
+      <h2 class="status-section-title">Components</h2>
+
+      {{if eq (len .Monitors) 0}}
+      <div class="status-card">
+        <p class="text-muted" style="text-align:center;padding:32px 0">No monitors configured yet.</p>
+      </div>
+      {{else}}
+      <div class="component-list">
+        {{range .Monitors}}
+        <div class="component-row">
+          <div class="component-info">
+            <span class="status-dot-sm status-{{.Status}}"></span>
+            <span class="component-name">{{.Name}}</span>
+          </div>
+          <div class="component-right">
+            {{if ge .Uptime90d 0.0}}
+            <span class="component-uptime" title="90-day uptime">{{uptimePct .Uptime90d}}</span>
+            {{end}}
+            <span class="status-badge status-badge-{{.Status}}">{{statusLabel .Status}}</span>
+          </div>
+
+          {{if .UptimeDays}}
+          <div class="uptime-bar-wrap" style="grid-column:1/-1">
+            <div class="uptime-bar">
+              {{range .UptimeDays}}
+              <div class="uptime-seg seg-{{.Status}}" title="{{.Date}}: {{if lt .UptimePct 0.0}}No data{{else}}{{printf "%.1f" .UptimePct}}%{{end}}"></div>
+              {{end}}
+            </div>
+            <div class="uptime-bar-labels">
+              <span>90 days ago</span>
+              <span>Today</span>
+            </div>
+          </div>
+          {{end}}
+        </div>
+        {{end}}
+      </div>
+      {{end}}
+    </section>
+
+    <!-- Subscribe -->
+    <section class="status-section subscribe-section">
+      <h2 class="status-section-title">Get Notified</h2>
+      <p class="subscribe-desc">Receive email alerts when the status of this page changes.</p>
+      <form method="POST" action="/subscribe" class="subscribe-form">
+        <input type="email" name="email" placeholder="you@example.com" required class="subscribe-input">
+        <button type="submit" class="btn btn-primary">Subscribe</button>
+      </form>
+    </section>
+
+    <footer class="status-footer">
+      <p>Powered by <a href="https://github.com/relay-monitor/relay" target="_blank">Relay</a></p>
+    </footer>
+
+  </div><!-- /status-container -->
+</body>
+</html>
+{{end}}

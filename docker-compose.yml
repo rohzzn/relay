@@ -1,0 +1,38 @@
+services:
+  relay:
+    image: ghcr.io/relay-monitor/relay:latest
+    # Uncomment to build from source instead:
+    # build: .
+    container_name: relay
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"  # Caddy/nginx proxies this; don't expose directly
+    volumes:
+      - relay-data:/data
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Optional: auto-TLS reverse proxy via Caddy
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - relay
+
+volumes:
+  relay-data:
+  caddy-data:
+  caddy-config:

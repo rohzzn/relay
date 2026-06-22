@@ -1,0 +1,104 @@
+{{define "page-settings"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — {{.Site.Name}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="admin-layout">
+  {{template "admin-nav" (dict "ActivePage" "settings")}}
+
+  <main class="admin-main">
+    <header class="admin-header">
+      <div>
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">Runtime configuration (set via environment variables)</p>
+      </div>
+    </header>
+
+    <div class="form-page">
+      <!-- Site info -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Site</h2>
+        </div>
+        <div class="card-body">
+          <dl class="settings-list">
+            <div class="settings-row">
+              <dt>Site Name</dt>
+              <dd><code>{{.Config.SiteName}}</code> <span class="settings-env">RELAY_SITE_NAME</span></dd>
+            </div>
+            <div class="settings-row">
+              <dt>Site URL</dt>
+              <dd><code>{{.Config.SiteURL}}</code> <span class="settings-env">RELAY_SITE_URL</span></dd>
+            </div>
+            <div class="settings-row">
+              <dt>Admin User</dt>
+              <dd><code>{{.Config.AdminUser}}</code> <span class="settings-env">RELAY_ADMIN_USER</span></dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+
+      <!-- SMTP -->
+      <div class="card" style="margin-top:24px">
+        <div class="card-header">
+          <h2 class="card-title">Email (SMTP)</h2>
+          {{if .Config.SMTPHost}}
+          <span class="badge badge-success">Configured</span>
+          {{else}}
+          <span class="badge badge-muted">Not configured</span>
+          {{end}}
+        </div>
+        <div class="card-body">
+          <dl class="settings-list">
+            <div class="settings-row">
+              <dt>SMTP Host</dt>
+              <dd>{{if .Config.SMTPHost}}<code>{{.Config.SMTPHost}}:{{.Config.SMTPPort}}</code>{{else}}<span class="text-muted">Not set</span>{{end}} <span class="settings-env">RELAY_SMTP_HOST / RELAY_SMTP_PORT</span></dd>
+            </div>
+            <div class="settings-row">
+              <dt>From Address</dt>
+              <dd>{{if .Config.SMTPFrom}}<code>{{.Config.SMTPFrom}}</code>{{else}}<span class="text-muted">Not set</span>{{end}} <span class="settings-env">RELAY_SMTP_FROM</span></dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+
+      <!-- Monitoring -->
+      <div class="card" style="margin-top:24px">
+        <div class="card-header">
+          <h2 class="card-title">Monitoring</h2>
+        </div>
+        <div class="card-body">
+          <dl class="settings-list">
+            <div class="settings-row">
+              <dt>Check Concurrency</dt>
+              <dd><code>{{.Config.CheckConcurrency}}</code> <span class="settings-env">RELAY_CHECK_CONCURRENCY</span></dd>
+            </div>
+            <div class="settings-row">
+              <dt>History Retention</dt>
+              <dd><code>{{.Config.RetentionDays}} days</code> <span class="settings-env">RELAY_RETENTION_DAYS</span></dd>
+            </div>
+            <div class="settings-row">
+              <dt>Subscribers</dt>
+              <dd><strong>{{.Subscribers}}</strong> confirmed</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+
+      <div class="info-box" style="margin-top:24px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        Settings are configured via environment variables. See <code>.env.example</code> for all options.
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+{{end}}

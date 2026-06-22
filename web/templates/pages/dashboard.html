@@ -1,0 +1,104 @@
+{{define "page-dashboard"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — {{.Site.Name}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+  <script src="https://unpkg.com/htmx-ext-ws@2.0.1/ws.js" defer></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="admin-layout">
+  {{template "admin-nav" (dict "ActivePage" "dashboard")}}
+
+  <main class="admin-main" hx-ext="ws" ws-connect="/ws">
+    <header class="admin-header">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">{{.Site.Name}} monitoring overview</p>
+      </div>
+      <a href="/admin/monitors/new" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Add Monitor
+      </a>
+    </header>
+
+    <!-- Stats row -->
+    <div class="stats-grid">
+      <div class="stat-card stat-total">
+        <div class="stat-value">{{.Stats.Total}}</div>
+        <div class="stat-label">Total Monitors</div>
+      </div>
+      <div class="stat-card stat-up">
+        <div class="stat-value">{{.Stats.Up}}</div>
+        <div class="stat-label">Operational</div>
+      </div>
+      {{if gt .Stats.Down 0}}
+      <div class="stat-card stat-down">
+        <div class="stat-value">{{.Stats.Down}}</div>
+        <div class="stat-label">Down</div>
+      </div>
+      {{end}}
+      {{if gt .Stats.Degraded 0}}
+      <div class="stat-card stat-degraded">
+        <div class="stat-value">{{.Stats.Degraded}}</div>
+        <div class="stat-label">Degraded</div>
+      </div>
+      {{end}}
+      {{if gt .Stats.Pending 0}}
+      <div class="stat-card stat-pending">
+        <div class="stat-value">{{.Stats.Pending}}</div>
+        <div class="stat-label">Pending</div>
+      </div>
+      {{end}}
+    </div>
+
+    <!-- Active incidents banner -->
+    {{if .Incidents}}
+    <div class="incidents-banner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      <span><strong>{{len .Incidents}} active incident{{if gt (len .Incidents) 1}}s{{end}}</strong></span>
+      <a href="/admin/incidents" class="incidents-banner-link">Manage →</a>
+    </div>
+    {{end}}
+
+    <!-- Monitor list -->
+    <div class="section">
+      <div class="section-header">
+        <h2 class="section-title">Monitors</h2>
+        <span class="section-count">{{.Stats.Total}}</span>
+      </div>
+
+      {{if eq .Stats.Total 0}}
+      <div class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <h3>No monitors yet</h3>
+        <p>Add your first monitor to start tracking uptime.</p>
+        <a href="/admin/monitors/new" class="btn btn-primary">Add Monitor</a>
+      </div>
+      {{else}}
+      <div class="monitor-list" id="monitor-list">
+        {{range .Monitors}}
+          {{template "monitor-row" .}}
+        {{end}}
+      </div>
+      {{end}}
+    </div>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
+{{end}}

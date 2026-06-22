@@ -1,0 +1,146 @@
+{{define "page-channels"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alert Channels — {{.Site.Name}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="admin-layout">
+  {{template "admin-nav" (dict "ActivePage" "channels")}}
+
+  <main class="admin-main">
+    <header class="admin-header">
+      <div>
+        <h1 class="page-title">Alert Channels</h1>
+        <p class="page-subtitle">Where to send alerts when a monitor goes down</p>
+      </div>
+      <button class="btn btn-primary" x-data x-on:click="$dispatch('open-add-channel')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Add Channel
+      </button>
+    </header>
+
+    {{if eq (len .Channels) 0}}
+    <div class="empty-state">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 01-3.46 0"/>
+      </svg>
+      <h3>No alert channels configured</h3>
+      <p>Add a Slack webhook, email address, or generic webhook to receive alerts.</p>
+    </div>
+    {{else}}
+    <div class="channel-list">
+      {{range .Channels}}
+      <div class="channel-card">
+        <div class="channel-icon channel-icon-{{.Type}}">
+          {{if eq .Type "slack"}}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.165 0a2.528 2.528 0 012.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.165a2.528 2.528 0 01-2.522 2.523h-6.313z"/>
+            </svg>
+          {{else if eq .Type "email"}}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+          {{else}}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+            </svg>
+          {{end}}
+        </div>
+        <div class="channel-info">
+          <div class="channel-name">{{.Name}}</div>
+          <div class="channel-type text-muted">{{.Type}}</div>
+        </div>
+        <form method="POST" action="/admin/channels/{{.ID}}/delete" style="margin-left:auto">
+          <button type="submit" class="btn btn-ghost btn-sm" onclick="return confirm('Delete this channel?')">Remove</button>
+        </form>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+
+    <!-- Add channel modal -->
+    <div class="modal-overlay" x-data="{open: false, chanType: 'webhook'}" x-on:open-add-channel.window="open = true" x-show="open" x-cloak>
+      <div class="modal-card" x-on:click.stop>
+        <div class="modal-header">
+          <h2 class="modal-title">Add Alert Channel</h2>
+          <button class="modal-close" x-on:click="open = false">×</button>
+        </div>
+        <form method="POST" action="/admin/channels" class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Channel Name</label>
+              <input type="text" name="name" class="form-input" placeholder="e.g. Ops Slack" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Type</label>
+              <select name="type" class="form-select" x-model="chanType">
+                <option value="webhook">Webhook</option>
+                <option value="slack">Slack</option>
+                <option value="email">Email (SMTP)</option>
+              </select>
+            </div>
+          </div>
+
+          <div x-show="chanType === 'webhook' || chanType === 'slack'">
+            <div class="form-group">
+              <label class="form-label">Webhook URL</label>
+              <input type="url" name="url" class="form-input" placeholder="https://...">
+            </div>
+          </div>
+
+          <div x-show="chanType === 'email'">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">SMTP Host</label>
+                <input type="text" name="smtp_host" class="form-input" placeholder="smtp.example.com">
+              </div>
+              <div class="form-group" style="max-width:120px">
+                <label class="form-label">Port</label>
+                <input type="number" name="smtp_port" class="form-input" value="587">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">SMTP User</label>
+                <input type="text" name="smtp_user" class="form-input">
+              </div>
+              <div class="form-group">
+                <label class="form-label">SMTP Password</label>
+                <input type="password" name="smtp_pass" class="form-input">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">From Address</label>
+                <input type="email" name="smtp_from" class="form-input" placeholder="alerts@example.com">
+              </div>
+              <div class="form-group">
+                <label class="form-label">To Address(es)</label>
+                <input type="text" name="to" class="form-input" placeholder="ops@example.com">
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" x-on:click="open = false">Cancel</button>
+            <button type="submit" class="btn btn-primary">Add Channel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</body>
+</html>
+{{end}}

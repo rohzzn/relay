@@ -1,0 +1,115 @@
+{{define "page-monitor-form"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}} — {{.Site.Name}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="admin-layout">
+  {{template "admin-nav" (dict "ActivePage" "dashboard")}}
+
+  <main class="admin-main">
+    <header class="admin-header">
+      <div>
+        <a href="/admin" class="breadcrumb">← Back to Dashboard</a>
+        <h1 class="page-title">{{.Title}}</h1>
+      </div>
+    </header>
+
+    <div class="form-page">
+      <form method="POST" action="{{.Action}}" x-data="{monType: '{{if .Monitor}}{{.Monitor.Type}}{{else}}http{{end}}'}" class="card">
+        <div class="card-body">
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="name">Monitor Name <span class="required">*</span></label>
+              <input id="name" type="text" name="name" class="form-input"
+                value="{{if .Monitor}}{{.Monitor.Name}}{{end}}"
+                placeholder="My API" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="type">Monitor Type <span class="required">*</span></label>
+              <select id="type" name="type" class="form-select" x-model="monType">
+                <option value="http" {{if .Monitor}}{{if eq .Monitor.Type "http"}}selected{{end}}{{end}}>HTTP / HTTPS</option>
+                <option value="tcp" {{if .Monitor}}{{if eq .Monitor.Type "tcp"}}selected{{end}}{{end}}>TCP Port</option>
+                <option value="tls" {{if .Monitor}}{{if eq .Monitor.Type "tls"}}selected{{end}}{{end}}>TLS Certificate</option>
+                <option value="heartbeat" {{if .Monitor}}{{if eq .Monitor.Type "heartbeat"}}selected{{end}}{{end}}>Heartbeat (Cron)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="target">
+              <span x-show="monType === 'http' || monType === 'https'">URL</span>
+              <span x-show="monType === 'tcp'">Host:Port</span>
+              <span x-show="monType === 'tls'">Hostname (or hostname:port)</span>
+              <span x-show="monType === 'heartbeat'">Heartbeat ID (auto-set to monitor ID)</span>
+              <span class="required">*</span>
+            </label>
+            <input id="target" type="text" name="target" class="form-input"
+              value="{{if .Monitor}}{{.Monitor.Target}}{{end}}"
+              placeholder="https://example.com" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="interval_s">Check Interval (seconds)</label>
+              <input id="interval_s" type="number" name="interval_s" class="form-input"
+                value="{{if .Monitor}}{{.Monitor.IntervalS}}{{else}}60{{end}}"
+                min="30" max="3600">
+            </div>
+            <div class="form-group" x-show="monType !== 'heartbeat'">
+              <label class="form-label" for="timeout_s">Timeout (seconds)</label>
+              <input id="timeout_s" type="number" name="timeout_s" class="form-input"
+                value="{{if .Config}}{{index .Config "timeout_s"}}{{else}}30{{end}}"
+                min="1" max="60">
+            </div>
+          </div>
+
+          <!-- HTTP-specific options -->
+          <div x-show="monType === 'http'">
+            <div class="form-section-title">HTTP Options</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="expected_status">Expected Status Code</label>
+                <input id="expected_status" type="number" name="expected_status" class="form-input"
+                  value="{{if .Config}}{{index .Config "expected_status"}}{{end}}"
+                  placeholder="200 (any 2xx/3xx if blank)">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="keyword">Response Keyword</label>
+                <input id="keyword" type="text" name="keyword" class="form-input"
+                  value="{{if .Config}}{{index .Config "keyword"}}{{end}}"
+                  placeholder="Optional: text that must appear in response">
+              </div>
+            </div>
+          </div>
+
+          <!-- TLS-specific options -->
+          <div x-show="monType === 'tls'">
+            <div class="form-section-title">TLS Options</div>
+            <div class="form-group">
+              <label class="form-label" for="warn_days">Warn when cert expires in (days)</label>
+              <input id="warn_days" type="number" name="warn_days" class="form-input"
+                value="{{if .Config}}{{index .Config "warn_days"}}{{else}}14{{end}}"
+                min="1" max="365">
+            </div>
+          </div>
+
+        </div><!-- /card-body -->
+
+        <div class="card-footer">
+          <a href="/admin" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-primary">{{.Title}}</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</body>
+</html>
+{{end}}

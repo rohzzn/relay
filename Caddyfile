@@ -1,0 +1,16 @@
+status.example.com {
+    reverse_proxy relay:8080
+
+    encode gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options    nosniff
+        X-Frame-Options           SAMEORIGIN
+        Referrer-Policy           strict-origin-when-cross-origin
+        -Server
+    }
+}
+
+# Caddy auto-provisions Let's Encrypt TLS — nothing else needed.
+# Replace status.example.com with your actual domain.
