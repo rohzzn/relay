@@ -21,8 +21,24 @@ docker run -d -p 8080:8080 -v relay-data:/data \
 
 ---
 
-<!-- Replace with a real screenshot before publishing -->
-> **Screenshot:** *Status page + admin dashboard screenshots go here*
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/dashboard.png" alt="Relay admin dashboard" width="100%">
+      <br><br>
+      <strong>Admin Dashboard</strong><br>
+      Real-time monitor overview with sparklines, 90-day uptime bars, and live WebSocket updates.
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/status-page.png" alt="Relay public status page" width="100%">
+      <br><br>
+      <strong>Public Status Page</strong><br>
+      Shareable status page with incident banners, component uptime, and email subscriptions.
+    </td>
+  </tr>
+</table>
 
 ---
 
