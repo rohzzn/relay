@@ -1,7 +1,8 @@
-# Build output
-relay
-relay.exe
-dist/
+# Build output (root binaries only — do not ignore cmd/relay/)
+/relay
+/relay.exe
+/dist/
+/relay-linux
 
 # Data directory (SQLite database + WAL files)
 data/

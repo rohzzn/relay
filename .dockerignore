@@ -1,0 +1,13 @@
+.git
+.github
+data
+.env
+.env.example
+*.md
+1.png
+2.png
+docs
+relay-linux
+relay.exe
+Caddyfile
+docker-compose.yml
