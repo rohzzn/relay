@@ -10,12 +10,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/relay-monitor/relay/internal/alert"
-	"github.com/relay-monitor/relay/internal/check"
-	"github.com/relay-monitor/relay/internal/config"
-	"github.com/relay-monitor/relay/internal/db"
-	"github.com/relay-monitor/relay/internal/scheduler"
-	"github.com/relay-monitor/relay/internal/state"
+	"github.com/rohzzn/relay/internal/alert"
+	"github.com/rohzzn/relay/internal/check"
+	"github.com/rohzzn/relay/internal/config"
+	"github.com/rohzzn/relay/internal/db"
+	"github.com/rohzzn/relay/internal/scheduler"
+	"github.com/rohzzn/relay/internal/state"
 )
 
 // Server is the HTTP server for the Relay admin and public status page.
@@ -81,7 +81,7 @@ func (s *Server) Start() error {
 
 	httpSrv := &http.Server{
 		Addr:         addr,
-		Handler:      s.mux,
+		Handler:      s.recoveryMiddleware(s.mux),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -137,6 +137,9 @@ func (s *Server) routes() {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	})
+
+	// Catch-all 404
+	mux.HandleFunc("/", s.handleNotFound)
 
 	s.mux = mux
 }
@@ -207,7 +210,10 @@ func (s *Server) parseTemplates() error {
 		},
 	}
 
-	tmpl, err := template.New("").Funcs(funcMap).ParseFS(s.webFS, "templates/partials/*.html", "templates/pages/*.html")
+	tmpl, err := template.New("").Funcs(funcMap).ParseFS(s.webFS,
+		"templates/partials/*.html",
+		"templates/pages/*.html",
+	)
 	if err != nil {
 		return err
 	}
@@ -242,6 +248,30 @@ func (s *Server) broadcastMonitorUpdate(m *db.Monitor) {
 		return
 	}
 	s.hub.Broadcast(frag)
+}
+
+func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
+	s.renderWithStatus(w, http.StatusNotFound, "page-404", map[string]any{"Site": s.siteData()})
+}
+
+func (s *Server) recoveryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Printf("panic recovered: %v", rec)
+				s.renderWithStatus(w, http.StatusInternalServerError, "page-500", map[string]any{"Site": s.siteData()})
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) renderWithStatus(w http.ResponseWriter, status int, name string, data any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	if err := s.tmpl.ExecuteTemplate(w, name, data); err != nil {
+		log.Printf("render %s: %v", name, err)
+	}
 }
 
 func formatDuration(d time.Duration) string {

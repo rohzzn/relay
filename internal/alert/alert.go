@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/relay-monitor/relay/internal/db"
-	"github.com/relay-monitor/relay/internal/notify"
-	"github.com/relay-monitor/relay/internal/state"
+	"github.com/rohzzn/relay/internal/db"
+	"github.com/rohzzn/relay/internal/notify"
+	"github.com/rohzzn/relay/internal/state"
 )
 
 const defaultCooldown = 10 * time.Minute

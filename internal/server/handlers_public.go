@@ -4,10 +4,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net/http"
 	"net/mail"
+	"net/smtp"
 
-	"github.com/relay-monitor/relay/internal/db"
+	"github.com/rohzzn/relay/internal/db"
 )
 
 // ── Public status page ────────────────────────────────────────────────────────
@@ -123,28 +125,47 @@ func (s *Server) handleUnsubscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) sendConfirmationEmail(email, token string) {
+	if s.cfg.SMTPHost == "" {
+		// No SMTP — auto-confirm so the feature works out of the box.
+		s.db.ConfirmSubscriber(token)
+		return
+	}
 	confirmURL := fmt.Sprintf("%s/subscribe/confirm/%s", s.cfg.SiteURL, token)
 	cfg := map[string]any{
 		"host": s.cfg.SMTPHost,
-		"port": s.cfg.SMTPPort,
+		"port": float64(s.cfg.SMTPPort),
 		"user": s.cfg.SMTPUser,
 		"pass": s.cfg.SMTPPass,
 		"from": s.cfg.SMTPFrom,
 		"to":   email,
 	}
-	_ = sendConfirmEmail(cfg, s.cfg.SiteName, email, confirmURL)
+	if err := sendRawConfirmEmail(cfg, s.cfg.SiteName, confirmURL); err != nil {
+		log.Printf("confirmation email to %s: %v", email, err)
+	}
 }
 
-func sendConfirmEmail(cfg map[string]any, siteName, to, confirmURL string) error {
-	body := fmt.Sprintf(`You signed up for status updates from %s.
+func sendRawConfirmEmail(cfg map[string]any, siteName, confirmURL string) error {
+	host, _ := cfg["host"].(string)
+	port := 587
+	if v, ok := cfg["port"].(float64); ok {
+		port = int(v)
+	}
+	user, _ := cfg["user"].(string)
+	pass, _ := cfg["pass"].(string)
+	from, _ := cfg["from"].(string)
+	recipient, _ := cfg["to"].(string)
 
-Click this link to confirm your subscription:
-%s
+	if host == "" || recipient == "" {
+		return fmt.Errorf("smtp not configured")
+	}
 
-If you didn't sign up, you can ignore this email.`, siteName, confirmURL)
-	_ = body
-	// Uses the same SMTP helper from notify package; simplified here.
-	return nil
+	auth := smtp.PlainAuth("", user, pass, host)
+	addr := fmt.Sprintf("%s:%d", host, port)
+	subject := fmt.Sprintf("Confirm your subscription to %s", siteName)
+	body := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nYou subscribed to status updates from %s.\r\n\r\nClick to confirm:\r\n%s\r\n\r\nIf you didn't sign up, ignore this email.",
+		from, recipient, subject, siteName, confirmURL)
+
+	return smtp.SendMail(addr, auth, from, []string{recipient}, []byte(body))
 }
 
 func generateToken() (string, error) {

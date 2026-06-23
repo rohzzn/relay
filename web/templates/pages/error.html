@@ -1,0 +1,47 @@
+{{define "page-404"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <title>404 Not Found — {{.Site.Name}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="login-layout">
+  <div style="text-align:center;padding:40px 24px">
+    <div style="font-size:5rem;font-weight:800;color:var(--gray-200);letter-spacing:-.05em;line-height:1">404</div>
+    <h1 style="font-size:1.25rem;font-weight:600;color:var(--text);margin:16px 0 8px">Page not found</h1>
+    <p style="color:var(--text-muted);font-size:.9375rem;margin:0 0 28px">The page you're looking for doesn't exist.</p>
+    <a href="/" class="btn btn-primary">Go to status page</a>
+    &nbsp;
+    <a href="/admin" class="btn btn-ghost">Go to dashboard</a>
+  </div>
+</body>
+</html>
+{{end}}
+
+{{define "page-500"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <title>Server Error — {{.Site.Name}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="login-layout">
+  <div style="text-align:center;padding:40px 24px">
+    <div style="font-size:5rem;font-weight:800;color:var(--gray-200);letter-spacing:-.05em;line-height:1">500</div>
+    <h1 style="font-size:1.25rem;font-weight:600;color:var(--text);margin:16px 0 8px">Something went wrong</h1>
+    <p style="color:var(--text-muted);font-size:.9375rem;margin:0 0 28px">An internal error occurred. Check the server logs.</p>
+    <a href="/" class="btn btn-primary">Go to status page</a>
+  </div>
+</body>
+</html>
+{{end}}

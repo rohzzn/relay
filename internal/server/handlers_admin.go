@@ -7,21 +7,23 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/relay-monitor/relay/internal/db"
+	"github.com/rohzzn/relay/internal/db"
 )
 
 // ── View types ────────────────────────────────────────────────────────────────
 
 type MonitorView struct {
 	*db.Monitor
-	LastCheck   *db.Check
-	Uptime24h   float64
-	Uptime7d    float64
-	Uptime30d   float64
-	Uptime90d   float64
-	UptimeDays  []db.DayUptime
+	LastCheck    *db.Check
+	Uptime24h    float64
+	Uptime7d     float64
+	Uptime30d    float64
+	Uptime90d    float64
+	UptimeDays   []db.DayUptime
 	RecentChecks []*db.Check
-	AvgLatency  int64
+	AvgLatency   int64
+	Sparkline    string
+	PingBase     string
 }
 
 type DashboardData struct {
@@ -29,6 +31,8 @@ type DashboardData struct {
 	Monitors  []*MonitorView
 	Stats     Stats
 	Incidents []*db.Incident
+	Flash     map[string]string
+	PingBase  string
 }
 
 type SiteData struct {
@@ -78,6 +82,8 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		Monitors:  views,
 		Stats:     stats,
 		Incidents: incidents,
+		Flash:     flashData(r),
+		PingBase:  s.cfg.SiteURL,
 	})
 }
 
@@ -89,8 +95,10 @@ func (s *Server) buildMonitorView(m *db.Monitor) (*MonitorView, error) {
 	mv.Uptime30d = s.db.GetUptimePct(m.ID, 30)
 	mv.Uptime90d = s.db.GetUptimePct(m.ID, 90)
 	mv.UptimeDays, _ = s.db.GetDailyUptime(m.ID, 90)
-	mv.RecentChecks, _ = s.db.ListChecks(m.ID, 20)
+	mv.RecentChecks, _ = s.db.ListChecks(m.ID, 40)
 	mv.AvgLatency = s.db.GetAvgLatency(m.ID, 24)
+	mv.Sparkline = sparklineSVG(mv.RecentChecks, sparklineColor(m.Status))
+	mv.PingBase = s.cfg.SiteURL
 	return mv, nil
 }
 
@@ -108,6 +116,7 @@ func (s *Server) handleMonitorNew(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "page-monitor-form", map[string]any{
 		"Site":    s.siteData(),
 		"Monitor": nil,
+		"Config":  map[string]any{},
 		"Action":  "/admin/monitors",
 		"Title":   "Add Monitor",
 	})
@@ -119,8 +128,14 @@ func (s *Server) handleMonitorCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "db error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// For heartbeat monitors, the target must be the monitor's own ID.
+	// Update it now that we have the ID.
+	if m.Type == "heartbeat" {
+		m.Target = m.ID
+		s.db.UpdateMonitor(m)
+	}
 	s.scheduler.Add(m)
-	http.Redirect(w, r, "/admin", http.StatusSeeOther)
+	setFlash(w, r, "/admin", "success", "Monitor \""+m.Name+"\" created")
 }
 
 func (s *Server) handleMonitorEdit(w http.ResponseWriter, r *http.Request) {
@@ -153,7 +168,7 @@ func (s *Server) handleMonitorUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.scheduler.Update(m)
-	http.Redirect(w, r, "/admin", http.StatusSeeOther)
+	setFlash(w, r, "/admin", "success", "Monitor \""+m.Name+"\" updated")
 }
 
 func (s *Server) handleMonitorDelete(w http.ResponseWriter, r *http.Request) {
@@ -189,6 +204,9 @@ func monitorFromForm(r *http.Request) *db.Monitor {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg["warn_days"] = n
 		}
+	}
+	if v := r.FormValue("expected_ip"); v != "" {
+		cfg["expected_ip"] = v
 	}
 	cfgJSON, _ := json.Marshal(cfg)
 
@@ -348,6 +366,7 @@ func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "page-login", map[string]any{
 		"Site":  s.siteData(),
 		"Error": r.URL.Query().Get("error"),
+		"Next":  r.URL.Query().Get("next"),
 	})
 }
 

@@ -30,7 +30,7 @@ func SendSlack(cfg map[string]any, p Payload) error {
 				"title":      p.Emoji() + " " + p.Subject(),
 				"text":       p.Detail,
 				"footer":     "Relay Monitor",
-				"footer_icon": "https://relay-monitor.io/favicon.png",
+				"footer_icon": "https://raw.githubusercontent.com/rohzzn/relay/main/web/static/favicon.svg",
 				"ts":         p.Time.Unix(),
 				"fields": []map[string]any{
 					{"title": "Monitor", "value": p.MonitorName, "short": true},

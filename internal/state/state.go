@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/relay-monitor/relay/internal/check"
-	"github.com/relay-monitor/relay/internal/db"
+	"github.com/rohzzn/relay/internal/check"
+	"github.com/rohzzn/relay/internal/db"
 )
 
 // EventType classifies a state transition.

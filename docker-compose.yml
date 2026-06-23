@@ -1,6 +1,6 @@
 services:
   relay:
-    image: ghcr.io/relay-monitor/relay:latest
+    image: ghcr.io/rohzzn/relay:latest
     # Uncomment to build from source instead:
     # build: .
     container_name: relay
@@ -12,7 +12,7 @@ services:
     env_file:
       - .env
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      test: ["CMD", "/relay", "healthcheck"]
       interval: 30s
       timeout: 5s
       retries: 3

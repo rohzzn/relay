@@ -1,6 +1,6 @@
-module github.com/relay-monitor/relay
+module github.com/rohzzn/relay
 
-go 1.23
+go 1.22
 
 require (
 	github.com/gorilla/websocket v1.5.3

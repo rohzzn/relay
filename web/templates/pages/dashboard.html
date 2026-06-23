@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <title>Dashboard — {{.Site.Name}}</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,6 +29,16 @@
         Add Monitor
       </a>
     </header>
+
+    <!-- Flash message -->
+    {{if .Flash}}
+    <div class="flash flash-{{index .Flash "kind"}}">
+      {{if eq (index .Flash "kind") "success"}}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      {{end}}
+      {{index .Flash "message"}}
+    </div>
+    {{end}}
 
     <!-- Stats row -->
     <div class="stats-grid">

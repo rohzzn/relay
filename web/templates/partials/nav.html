@@ -80,6 +80,9 @@
       </div>
     </div>
     <div class="monitor-meta">
+      {{if .Sparkline}}
+        <div class="sparkline" title="Response time (last 40 checks)">{{safeHTML .Sparkline}}</div>
+      {{end}}
       {{if .LastCheck}}
         {{if .LastCheck.LatencyMs.Valid}}
           <span class="latency-badge">{{.LastCheck.LatencyMs.Int64}}ms</span>
@@ -119,13 +122,17 @@
     </div>
   </div>
   {{end}}
-  {{if .LastCheck}}
   <div class="monitor-card-footer">
+    {{if eq .Type "heartbeat"}}
+    <span class="heartbeat-url text-muted">
+      POST <code>{{.PingBase}}/ping/{{.ID}}</code>
+    </span>
+    {{else if .LastCheck}}
     <span class="text-muted">Last checked {{formatDuration .LastCheck.CheckedAt}}</span>
     {{if .LastCheck.Detail.Valid}}
     <span class="text-muted detail-text">{{.LastCheck.Detail.String}}</span>
     {{end}}
+    {{end}}
   </div>
-  {{end}}
 </div>
 {{end}}

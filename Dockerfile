@@ -24,4 +24,7 @@ EXPOSE  8080
 ENV RELAY_DATA=/data \
     RELAY_PORT=8080
 
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD ["/relay", "healthcheck"]
+
 ENTRYPOINT ["/relay"]

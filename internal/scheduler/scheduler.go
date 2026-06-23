@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/relay-monitor/relay/internal/check"
-	"github.com/relay-monitor/relay/internal/db"
+	"github.com/rohzzn/relay/internal/check"
+	"github.com/rohzzn/relay/internal/db"
 )
 
 // OnResult is called after every probe with the monitor and its result.
@@ -26,6 +26,7 @@ type Scheduler struct {
 	httpChecker      *check.HTTP
 	tcpChecker       *check.TCP
 	tlsChecker       *check.TLS
+	dnsChecker       *check.DNS
 	heartbeatChecker *check.Heartbeat
 }
 
@@ -46,6 +47,7 @@ func New(database *db.DB, concurrency int, onResult OnResult) *Scheduler {
 		httpChecker:      &check.HTTP{},
 		tcpChecker:       &check.TCP{},
 		tlsChecker:       &check.TLS{},
+		dnsChecker:       &check.DNS{},
 		heartbeatChecker: hb,
 	}
 }
@@ -122,6 +124,8 @@ func (s *Scheduler) probe(ctx context.Context, m *db.Monitor) {
 		result = s.tcpChecker.Check(ctx, m.Target, cfg)
 	case "tls":
 		result = s.tlsChecker.Check(ctx, m.Target, cfg)
+	case "dns":
+		result = s.dnsChecker.Check(ctx, m.Target, cfg)
 	case "heartbeat":
 		// For heartbeat, target is the monitor ID itself
 		cfg["interval_s"] = m.IntervalS

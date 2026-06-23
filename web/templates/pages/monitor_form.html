@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <title>{{.Title}} — {{.Site.Name}}</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,7 +39,8 @@
                 <option value="http" {{if .Monitor}}{{if eq .Monitor.Type "http"}}selected{{end}}{{end}}>HTTP / HTTPS</option>
                 <option value="tcp" {{if .Monitor}}{{if eq .Monitor.Type "tcp"}}selected{{end}}{{end}}>TCP Port</option>
                 <option value="tls" {{if .Monitor}}{{if eq .Monitor.Type "tls"}}selected{{end}}{{end}}>TLS Certificate</option>
-                <option value="heartbeat" {{if .Monitor}}{{if eq .Monitor.Type "heartbeat"}}selected{{end}}{{end}}>Heartbeat (Cron)</option>
+                <option value="dns"       {{if .Monitor}}{{if eq .Monitor.Type "dns"}}selected{{end}}{{end}}>DNS Lookup</option>
+              <option value="heartbeat" {{if .Monitor}}{{if eq .Monitor.Type "heartbeat"}}selected{{end}}{{end}}>Heartbeat (Cron)</option>
               </select>
             </div>
           </div>
@@ -48,6 +50,7 @@
               <span x-show="monType === 'http' || monType === 'https'">URL</span>
               <span x-show="monType === 'tcp'">Host:Port</span>
               <span x-show="monType === 'tls'">Hostname (or hostname:port)</span>
+              <span x-show="monType === 'dns'">Hostname to resolve</span>
               <span x-show="monType === 'heartbeat'">Heartbeat ID (auto-set to monitor ID)</span>
               <span class="required">*</span>
             </label>
@@ -60,7 +63,7 @@
             <div class="form-group">
               <label class="form-label" for="interval_s">Check Interval (seconds)</label>
               <input id="interval_s" type="number" name="interval_s" class="form-input"
-                value="{{if .Monitor}}{{.Monitor.IntervalS}}{{else}}60{{end}}"
+                value="{{if .Monitor}}{{.Monitor.IntervalS}}{{else}}30{{end}}"
                 min="30" max="3600">
             </div>
             <div class="form-group" x-show="monType !== 'heartbeat'">
@@ -87,6 +90,17 @@
                   value="{{if .Config}}{{index .Config "keyword"}}{{end}}"
                   placeholder="Optional: text that must appear in response">
               </div>
+            </div>
+          </div>
+
+          <!-- DNS-specific options -->
+          <div x-show="monType === 'dns'">
+            <div class="form-section-title">DNS Options</div>
+            <div class="form-group">
+              <label class="form-label" for="expected_ip">Expected IP Address (optional)</label>
+              <input id="expected_ip" type="text" name="expected_ip" class="form-input"
+                value="{{if .Config}}{{index .Config "expected_ip"}}{{end}}"
+                placeholder="Leave blank to just check resolution succeeds">
             </div>
           </div>
 
