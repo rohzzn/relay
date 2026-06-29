@@ -12,7 +12,8 @@ import (
 )
 
 // OnResult is called after every probe with the monitor and its result.
-type OnResult func(m *db.Monitor, r check.Result)
+// The inMaintenance flag signals that alerting should be suppressed.
+type OnResult func(m *db.Monitor, r check.Result, inMaintenance bool)
 
 // Scheduler runs per-monitor goroutines on configurable intervals.
 type Scheduler struct {
@@ -82,14 +83,13 @@ func (s *Scheduler) Update(m *db.Monitor) {
 	s.Add(m)
 }
 
-// run is the per-monitor goroutine. It runs the checker every IntervalS seconds.
+// run is the per-monitor goroutine.
 func (s *Scheduler) run(ctx context.Context, m *db.Monitor) {
 	interval := time.Duration(m.IntervalS) * time.Second
 	if interval < 5*time.Second {
 		interval = 5 * time.Second
 	}
 
-	// Run immediately on start.
 	s.probe(ctx, m)
 
 	ticker := time.NewTicker(interval)
@@ -100,10 +100,13 @@ func (s *Scheduler) run(ctx context.Context, m *db.Monitor) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			// Reload monitor in case it was edited.
 			fresh, err := s.db.GetMonitor(m.ID)
 			if err != nil || fresh == nil {
 				return
+			}
+			// Skip probe entirely if the monitor is paused.
+			if fresh.Paused {
+				continue
 			}
 			s.probe(ctx, fresh)
 		}
@@ -127,7 +130,6 @@ func (s *Scheduler) probe(ctx context.Context, m *db.Monitor) {
 	case "dns":
 		result = s.dnsChecker.Check(ctx, m.Target, cfg)
 	case "heartbeat":
-		// For heartbeat, target is the monitor ID itself
 		cfg["interval_s"] = m.IntervalS
 		result = s.heartbeatChecker.Check(ctx, m.ID, cfg)
 	default:
@@ -154,7 +156,8 @@ func (s *Scheduler) probe(ctx context.Context, m *db.Monitor) {
 		log.Printf("scheduler: save check for %s: %v", m.ID, err)
 	}
 
-	s.onResult(m, result)
+	inMaintenance := s.db.IsInMaintenance(m.ID)
+	s.onResult(m, result, inMaintenance)
 }
 
 func parseCfg(raw string) map[string]any {

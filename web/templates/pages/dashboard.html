@@ -22,15 +22,29 @@
         <h1 class="page-title">Dashboard</h1>
         <p class="page-subtitle">{{.Site.Name}} monitoring overview</p>
       </div>
-      <a href="/admin/monitors/new" class="btn btn-primary">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-        Add Monitor
-      </a>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="search-wrap">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" id="monitor-search" class="search-input" placeholder="Search monitors…" oninput="filterMonitors(this.value)">
+        </div>
+        <select id="status-filter" class="form-select" style="width:auto" onchange="filterMonitors(document.getElementById('monitor-search').value)">
+          <option value="">All statuses</option>
+          <option value="up">Operational</option>
+          <option value="down">Down</option>
+          <option value="degraded">Degraded</option>
+          <option value="pending">Pending</option>
+        </select>
+        <a href="/admin/monitors/new" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Add Monitor
+        </a>
+      </div>
     </header>
 
-    <!-- Flash message -->
     {{if .Flash}}
     <div class="flash flash-{{index .Flash "kind"}}">
       {{if eq (index .Flash "kind") "success"}}
@@ -68,9 +82,14 @@
         <div class="stat-label">Pending</div>
       </div>
       {{end}}
+      {{if gt .Stats.Paused 0}}
+      <div class="stat-card stat-paused">
+        <div class="stat-value">{{.Stats.Paused}}</div>
+        <div class="stat-label">Paused</div>
+      </div>
+      {{end}}
     </div>
 
-    <!-- Active incidents banner -->
     {{if .Incidents}}
     <div class="incidents-banner">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -82,32 +101,34 @@
     </div>
     {{end}}
 
-    <!-- Monitor list -->
-    <div class="section">
-      <div class="section-header">
-        <h2 class="section-title">Monitors</h2>
-        <span class="section-count">{{.Stats.Total}}</span>
-      </div>
-
-      {{if eq .Stats.Total 0}}
-      <div class="empty-state">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="8" x2="12" y2="12"/>
-          <line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-        <h3>No monitors yet</h3>
-        <p>Add your first monitor to start tracking uptime.</p>
-        <a href="/admin/monitors/new" class="btn btn-primary">Add Monitor</a>
-      </div>
-      {{else}}
-      <div class="monitor-list" id="monitor-list">
-        {{range .Monitors}}
-          {{template "monitor-row" .}}
-        {{end}}
+    <!-- Monitor groups -->
+    {{if eq .Stats.Total 0}}
+    <div class="empty-state">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <h3>No monitors yet</h3>
+      <p>Add your first monitor to start tracking uptime.</p>
+      <a href="/admin/monitors/new" class="btn btn-primary">Add Monitor</a>
+    </div>
+    {{else}}
+    <div id="monitor-list">
+      {{range .Groups}}
+      <div class="section monitor-group" data-group="{{.Name}}">
+        <div class="section-header">
+          <h2 class="section-title">{{.Name}}</h2>
+          <span class="section-count">{{len .Monitors}}</span>
+        </div>
+        <div class="monitor-list">
+          {{range .Monitors}}
+            {{template "monitor-row" .}}
+          {{end}}
+        </div>
       </div>
       {{end}}
     </div>
+    {{end}}
   </main>
   <script src="/static/app.js"></script>
 </body>

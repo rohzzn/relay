@@ -28,6 +28,10 @@
       </button>
     </header>
 
+    {{if .Flash}}
+    <div class="flash flash-{{index .Flash "kind"}}">{{index .Flash "message"}}</div>
+    {{end}}
+
     {{if eq (len .Channels) 0}}
     <div class="empty-state">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -35,7 +39,7 @@
         <path d="M13.73 21a2 2 0 01-3.46 0"/>
       </svg>
       <h3>No alert channels configured</h3>
-      <p>Add a Slack webhook, email address, or generic webhook to receive alerts.</p>
+      <p>Add a Slack webhook, PagerDuty, OpsGenie, email, or generic webhook to receive alerts.</p>
     </div>
     {{else}}
     <div class="channel-list">
@@ -51,6 +55,14 @@
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
               <polyline points="22,6 12,13 2,6"/>
             </svg>
+          {{else if eq .Type "pagerduty"}}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16.965 1.18C15.085.25 13.769 0 10.605 0H3.06v14.25h7.53c2.74 0 4.805-.43 6.345-1.6 1.68-1.2 2.595-3.15 2.595-5.57-.015-2.75-1.035-4.8-2.565-5.9zM9.93 10.63H6.63V3.63h3.6c2.79 0 4.29 1.08 4.29 3.39-.015 2.475-1.545 3.61-4.59 3.61zM3.045 18.45H6.6V24H3.045z"/>
+            </svg>
+          {{else if eq .Type "opsgenie"}}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.383 0 0 5.383 0 12s5.383 12 12 12 12-5.383 12-12S18.617 0 12 0zm0 4.5a7.5 7.5 0 110 15 7.5 7.5 0 010-15zm0 3a4.5 4.5 0 100 9 4.5 4.5 0 000-9z"/>
+            </svg>
           {{else}}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
@@ -62,73 +74,109 @@
           <div class="channel-name">{{.Name}}</div>
           <div class="channel-type text-muted">{{.Type}}</div>
         </div>
-        <form method="POST" action="/admin/channels/{{.ID}}/delete" style="margin-left:auto">
-          <button type="submit" class="btn btn-ghost btn-sm" onclick="return confirm('Delete this channel?')">Remove</button>
-        </form>
+        <div style="display:flex;gap:8px;margin-left:auto;align-items:center">
+          <form method="POST" action="/admin/channels/{{.ID}}/test">
+            <button type="submit" class="btn btn-ghost btn-sm">Send Test</button>
+          </form>
+          <form method="POST" action="/admin/channels/{{.ID}}/delete">
+            <button type="submit" class="btn btn-ghost btn-sm" onclick="return confirm('Delete this channel?')">Remove</button>
+          </form>
+        </div>
       </div>
       {{end}}
     </div>
     {{end}}
 
     <!-- Add channel modal -->
-    <div class="modal-overlay" x-data="{open: false, chanType: 'webhook'}" x-on:open-add-channel.window="open = true" x-show="open" x-cloak>
+    <div class="modal-overlay" x-data="{open: false, chanType: 'webhook'}"
+      x-on:open-add-channel.window="open = true"
+      x-show="open" x-cloak>
       <div class="modal-card" x-on:click.stop>
         <div class="modal-header">
           <h2 class="modal-title">Add Alert Channel</h2>
           <button class="modal-close" x-on:click="open = false">×</button>
         </div>
-        <form method="POST" action="/admin/channels" class="modal-body">
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Channel Name</label>
-              <input type="text" name="name" class="form-input" placeholder="e.g. Ops Slack" required>
+        <form method="POST" action="/admin/channels">
+          <div class="modal-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Channel Name <span class="required">*</span></label>
+                <input type="text" name="name" class="form-input" placeholder="e.g. Ops Slack" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Type</label>
+                <select name="type" class="form-select" x-model="chanType">
+                  <option value="webhook">Webhook</option>
+                  <option value="slack">Slack</option>
+                  <option value="email">Email (SMTP)</option>
+                  <option value="pagerduty">PagerDuty</option>
+                  <option value="opsgenie">OpsGenie</option>
+                </select>
+              </div>
             </div>
-            <div class="form-group">
-              <label class="form-label">Type</label>
-              <select name="type" class="form-select" x-model="chanType">
-                <option value="webhook">Webhook</option>
-                <option value="slack">Slack</option>
-                <option value="email">Email (SMTP)</option>
-              </select>
-            </div>
-          </div>
 
-          <div x-show="chanType === 'webhook' || chanType === 'slack'">
-            <div class="form-group">
-              <label class="form-label">Webhook URL</label>
-              <input type="url" name="url" class="form-input" placeholder="https://...">
+            <div x-show="chanType === 'webhook' || chanType === 'slack'">
+              <div class="form-group">
+                <label class="form-label">Webhook URL</label>
+                <input type="url" name="url" class="form-input" placeholder="https://…">
+              </div>
             </div>
-          </div>
 
-          <div x-show="chanType === 'email'">
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">SMTP Host</label>
-                <input type="text" name="smtp_host" class="form-input" placeholder="smtp.example.com">
+            <div x-show="chanType === 'email'">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">SMTP Host</label>
+                  <input type="text" name="smtp_host" class="form-input" placeholder="smtp.example.com">
+                </div>
+                <div class="form-group" style="max-width:120px">
+                  <label class="form-label">Port</label>
+                  <input type="number" name="smtp_port" class="form-input" value="587">
+                </div>
               </div>
-              <div class="form-group" style="max-width:120px">
-                <label class="form-label">Port</label>
-                <input type="number" name="smtp_port" class="form-input" value="587">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">SMTP User</label>
+                  <input type="text" name="smtp_user" class="form-input">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">SMTP Password</label>
+                  <input type="password" name="smtp_pass" class="form-input">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">From Address</label>
+                  <input type="email" name="smtp_from" class="form-input" placeholder="alerts@example.com">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">To Address</label>
+                  <input type="text" name="to" class="form-input" placeholder="ops@example.com">
+                </div>
               </div>
             </div>
-            <div class="form-row">
+
+            <div x-show="chanType === 'pagerduty'">
               <div class="form-group">
-                <label class="form-label">SMTP User</label>
-                <input type="text" name="smtp_user" class="form-input">
+                <label class="form-label">Integration Key</label>
+                <input type="text" name="integration_key" class="form-input" placeholder="PagerDuty Events API v2 integration key">
               </div>
-              <div class="form-group">
-                <label class="form-label">SMTP Password</label>
-                <input type="password" name="smtp_pass" class="form-input">
+              <div class="info-box" style="margin-top:0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Create an "Events API v2" integration in your PagerDuty service and paste the integration key here.
               </div>
             </div>
-            <div class="form-row">
+
+            <div x-show="chanType === 'opsgenie'">
               <div class="form-group">
-                <label class="form-label">From Address</label>
-                <input type="email" name="smtp_from" class="form-input" placeholder="alerts@example.com">
+                <label class="form-label">API Key</label>
+                <input type="text" name="api_key" class="form-input" placeholder="OpsGenie API key">
               </div>
               <div class="form-group">
-                <label class="form-label">To Address(es)</label>
-                <input type="text" name="to" class="form-input" placeholder="ops@example.com">
+                <label class="form-label">Region</label>
+                <select name="region" class="form-select">
+                  <option value="">US (default)</option>
+                  <option value="eu">EU</option>
+                </select>
               </div>
             </div>
           </div>
@@ -142,6 +190,7 @@
     </div>
 
   </main>
+  <script src="/static/app.js"></script>
 </body>
 </html>
 {{end}}

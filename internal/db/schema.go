@@ -54,4 +54,47 @@ CREATE TABLE IF NOT EXISTS heartbeats (
 	monitor_id  TEXT PRIMARY KEY REFERENCES monitors(id) ON DELETE CASCADE,
 	last_ping   INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS users (
+	id           TEXT PRIMARY KEY,
+	username     TEXT NOT NULL UNIQUE,
+	email        TEXT NOT NULL,
+	hashed_pass  TEXT NOT NULL,
+	role         TEXT NOT NULL DEFAULT 'viewer',
+	created_at   INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS api_keys (
+	id           TEXT PRIMARY KEY,
+	name         TEXT NOT NULL,
+	key_hash     TEXT NOT NULL UNIQUE,
+	role         TEXT NOT NULL DEFAULT 'viewer',
+	created_at   INTEGER NOT NULL,
+	last_used_at INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_windows (
+	id          TEXT PRIMARY KEY,
+	label       TEXT NOT NULL,
+	monitor_id  TEXT,
+	starts_at   INTEGER NOT NULL,
+	ends_at     INTEGER NOT NULL,
+	created_at  INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS monitor_channels (
+	monitor_id  TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
+	channel_id  TEXT NOT NULL REFERENCES alert_channels(id) ON DELETE CASCADE,
+	PRIMARY KEY (monitor_id, channel_id)
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+	id           INTEGER PRIMARY KEY AUTOINCREMENT,
+	actor        TEXT NOT NULL,
+	action       TEXT NOT NULL,
+	entity_type  TEXT NOT NULL,
+	entity_id    TEXT NOT NULL,
+	detail       TEXT,
+	created_at   INTEGER NOT NULL
+);
 `

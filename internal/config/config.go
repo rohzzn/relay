@@ -14,6 +14,7 @@ type Config struct {
 	SiteName         string
 	SiteURL          string
 	LogoURL          string
+	FooterText       string
 	SMTPHost         string
 	SMTPPort         int
 	SMTPUser         string
@@ -33,9 +34,10 @@ func Load() (*Config, error) {
 		AdminUser: getEnv("RELAY_ADMIN_USER", "admin"),
 		AdminPass: getEnv("RELAY_ADMIN_PASS", ""),
 
-		SiteName: getEnv("RELAY_SITE_NAME", "Status"),
-		SiteURL:  getEnv("RELAY_SITE_URL", "http://localhost:8080"),
-		LogoURL:  getEnv("RELAY_LOGO_URL", ""),
+		SiteName:   getEnv("RELAY_SITE_NAME", "Status"),
+		SiteURL:    getEnv("RELAY_SITE_URL", "http://localhost:8080"),
+		LogoURL:    getEnv("RELAY_LOGO_URL", ""),
+		FooterText: getEnv("RELAY_FOOTER_TEXT", ""),
 
 		SMTPHost: getEnv("RELAY_SMTP_HOST", ""),
 		SMTPUser: getEnv("RELAY_SMTP_USER", ""),

@@ -1,0 +1,140 @@
+{{define "page-maintenance"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <title>Maintenance — {{.Site.Name}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="admin-layout">
+  {{template "admin-nav" (dict "ActivePage" "maintenance")}}
+
+  <main class="admin-main">
+    <header class="admin-header">
+      <div>
+        <h1 class="page-title">Maintenance Windows</h1>
+        <p class="page-subtitle">Suppress alerts during planned downtime</p>
+      </div>
+      <button class="btn btn-primary" x-data x-on:click="$dispatch('open-add-window')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Schedule Window
+      </button>
+    </header>
+
+    {{if .Flash}}
+    <div class="flash flash-{{index .Flash "kind"}}">{{index .Flash "message"}}</div>
+    {{end}}
+
+    <div class="info-box" style="margin-bottom:24px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      During a maintenance window, monitors continue to run and results are recorded — but no alerts fire and no incidents are auto-created.
+    </div>
+
+    {{if .Windows}}
+    <div class="maint-list">
+      {{range .Windows}}
+      <div class="maint-card {{if isActive .StartsAt .EndsAt}}maint-active{{else if isFuture .StartsAt}}maint-upcoming{{else}}maint-past{{end}}">
+        <div class="maint-card-left">
+          <div class="maint-status-dot"></div>
+          <div>
+            <div class="maint-label">{{.Label}}</div>
+            <div class="maint-scope text-muted">
+              {{if .MonitorID.Valid}}Monitor-specific{{else}}All monitors{{end}}
+            </div>
+          </div>
+        </div>
+        <div class="maint-times">
+          <div class="maint-time-row">
+            <span class="text-muted">Start</span>
+            <strong>{{formatTime .StartsAt}}</strong>
+          </div>
+          <div class="maint-time-row">
+            <span class="text-muted">End</span>
+            <strong>{{formatTime .EndsAt}}</strong>
+          </div>
+        </div>
+        <div class="maint-badge-wrap">
+          {{if isActive .StartsAt .EndsAt}}
+            <span class="maint-badge maint-badge-active">Active</span>
+          {{else if isFuture .StartsAt}}
+            <span class="maint-badge maint-badge-upcoming">Upcoming</span>
+          {{else}}
+            <span class="maint-badge maint-badge-past">Completed</span>
+          {{end}}
+        </div>
+        <form method="POST" action="/admin/maintenance/{{.ID}}/delete">
+          <button type="submit" class="btn btn-ghost btn-sm"
+            onclick="return confirm('Delete this maintenance window?')">Delete</button>
+        </form>
+      </div>
+      {{end}}
+    </div>
+    {{else}}
+    <div class="empty-state">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <h3>No maintenance windows</h3>
+      <p>Schedule a window before a deployment to suppress false alerts.</p>
+    </div>
+    {{end}}
+
+    <!-- Add window modal -->
+    <div class="modal-overlay" x-data="{open: false}"
+      x-on:open-add-window.window="open = true"
+      x-show="open" x-cloak>
+      <div class="modal-card" x-on:click.stop>
+        <div class="modal-header">
+          <h2 class="modal-title">Schedule Maintenance Window</h2>
+          <button class="modal-close" x-on:click="open = false">×</button>
+        </div>
+        <form method="POST" action="/admin/maintenance">
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">Label <span class="required">*</span></label>
+              <input type="text" name="label" class="form-input"
+                placeholder="e.g. Database migration v2.5" required>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Start <span class="required">*</span></label>
+                <input type="datetime-local" name="starts_at" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">End <span class="required">*</span></label>
+                <input type="datetime-local" name="ends_at" class="form-input" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Scope</label>
+              <select name="monitor_id" class="form-select">
+                <option value="">All monitors</option>
+                {{range .Monitors}}
+                <option value="{{.ID}}">{{.Name}}</option>
+                {{end}}
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" x-on:click="open = false">Cancel</button>
+            <button type="submit" class="btn btn-primary">Schedule</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
+{{end}}

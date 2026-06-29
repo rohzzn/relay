@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -31,15 +32,15 @@ func (s *Server) createSession(w http.ResponseWriter, username string) {
 
 func (s *Server) clearSession(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:    sessionCookieName,
-		Value:   "",
-		MaxAge:  -1,
-		Path:    "/",
+		Name:     sessionCookieName,
+		Value:    "",
+		MaxAge:   -1,
+		Path:     "/",
 		HttpOnly: true,
 	})
 }
 
-// sessionUser returns the authenticated username, or "" if the session is invalid/expired.
+// sessionUser returns the authenticated username, or "" if invalid/expired.
 func (s *Server) sessionUser(r *http.Request) string {
 	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil {
@@ -76,7 +77,7 @@ func verifyHMAC(msg, sig, secret string) bool {
 	return hmac.Equal([]byte(expected), []byte(sig))
 }
 
-// requireAuth is a middleware that redirects to /login if the user is not authenticated.
+// requireAuth redirects to /login if not authenticated via session.
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.sessionUser(r) == "" {
@@ -85,4 +86,51 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 		}
 		next(w, r)
 	}
+}
+
+// requireAPIOrSession allows access via API key bearer token OR admin session.
+func (s *Server) requireAPIOrSession(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Try API key first.
+		if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+			raw := strings.TrimPrefix(auth, "Bearer ")
+			hash := hashAPIKey(raw)
+			key, err := s.db.GetAPIKeyByHash(hash)
+			if err == nil && key != nil {
+				s.db.TouchAPIKey(key.ID)
+				next(w, r)
+				return
+			}
+			jsonError(w, "invalid API key", http.StatusUnauthorized)
+			return
+		}
+		// Fall back to session.
+		if s.sessionUser(r) != "" {
+			next(w, r)
+			return
+		}
+		jsonError(w, "unauthorized", http.StatusUnauthorized)
+	}
+}
+
+// GenerateAPIKey returns a new random API key and its SHA-256 hash.
+func GenerateAPIKey() (raw, hash string, err error) {
+	b := make([]byte, 32)
+	if _, err = rand.Read(b); err != nil {
+		return
+	}
+	raw = "relay_" + hex.EncodeToString(b)
+	hash = hashAPIKey(raw)
+	return
+}
+
+func hashAPIKey(raw string) string {
+	h := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(h[:])
+}
+
+func jsonError(w http.ResponseWriter, msg string, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	fmt.Fprintf(w, `{"error":%q}`, msg)
 }

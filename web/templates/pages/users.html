@@ -1,0 +1,161 @@
+{{define "page-users"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <title>Team — {{.Site.Name}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="admin-layout">
+  {{template "admin-nav" (dict "ActivePage" "users")}}
+
+  <main class="admin-main">
+    <header class="admin-header">
+      <div>
+        <h1 class="page-title">Team</h1>
+        <p class="page-subtitle">Manage who can access the admin dashboard</p>
+      </div>
+      <button class="btn btn-primary" x-data x-on:click="$dispatch('open-add-user')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Add User
+      </button>
+    </header>
+
+    {{if .Flash}}
+    <div class="flash flash-{{index .Flash "kind"}}">{{index .Flash "message"}}</div>
+    {{end}}
+
+    <!-- Role legend -->
+    <div class="role-legend">
+      <div class="role-legend-item">
+        <span class="badge badge-role-admin">Admin</span>
+        <span class="text-muted">Full access — manage everything</span>
+      </div>
+      <div class="role-legend-item">
+        <span class="badge badge-role-editor">Editor</span>
+        <span class="text-muted">Manage monitors, post incident updates</span>
+      </div>
+      <div class="role-legend-item">
+        <span class="badge badge-role-viewer">Viewer</span>
+        <span class="text-muted">Read-only — view dashboard only</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="card-header">
+        <h2 class="card-title">Users</h2>
+        <span class="section-count">{{len .Users}}</span>
+      </div>
+      {{if .Users}}
+      <div class="card-body" style="padding:0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Created</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .Users}}
+            <tr>
+              <td>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div class="user-avatar">{{initial .Username}}</div>
+                  <strong>{{.Username}}</strong>
+                </div>
+              </td>
+              <td class="text-muted">{{.Email}}</td>
+              <td>
+                <form method="POST" action="/admin/users/{{.ID}}/role" style="display:inline-flex;align-items:center;gap:6px">
+                  <select name="role" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="admin"  {{if eq .Role "admin"}}selected{{end}}>Admin</option>
+                    <option value="editor" {{if eq .Role "editor"}}selected{{end}}>Editor</option>
+                    <option value="viewer" {{if eq .Role "viewer"}}selected{{end}}>Viewer</option>
+                  </select>
+                </form>
+              </td>
+              <td class="text-muted">{{formatUnixTime .CreatedAt}}</td>
+              <td>
+                <form method="POST" action="/admin/users/{{.ID}}/delete" style="display:inline">
+                  <button type="submit" class="btn btn-ghost btn-sm"
+                    onclick="return confirm('Remove user {{.Username}}?')">Remove</button>
+                </form>
+              </td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+      {{else}}
+      <div class="card-body" style="text-align:center;color:var(--text-muted);padding:40px">
+        No team members yet. The primary admin account is configured via environment variables.
+      </div>
+      {{end}}
+    </div>
+
+    <div class="info-box" style="margin-top:20px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      The primary admin account (<code>RELAY_ADMIN_USER</code> / <code>RELAY_ADMIN_PASS</code>) always has full access regardless of this list.
+    </div>
+
+    <!-- Add user modal -->
+    <div class="modal-overlay" x-data="{open: false}"
+      x-on:open-add-user.window="open = true"
+      x-show="open" x-cloak>
+      <div class="modal-card" x-on:click.stop>
+        <div class="modal-header">
+          <h2 class="modal-title">Add Team Member</h2>
+          <button class="modal-close" x-on:click="open = false">×</button>
+        </div>
+        <form method="POST" action="/admin/users">
+          <div class="modal-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Username <span class="required">*</span></label>
+                <input type="text" name="username" class="form-input" placeholder="jane" required autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-input" placeholder="jane@example.com">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Password <span class="required">*</span></label>
+                <input type="password" name="password" class="form-input" required autocomplete="new-password">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Role</label>
+                <select name="role" class="form-select">
+                  <option value="viewer">Viewer</option>
+                  <option value="editor">Editor</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" x-on:click="open = false">Cancel</button>
+            <button type="submit" class="btn btn-primary">Add User</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
+{{end}}

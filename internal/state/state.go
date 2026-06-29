@@ -29,7 +29,7 @@ type Event struct {
 // Manager tracks per-monitor state and produces events on transitions.
 type Manager struct {
 	db      *db.DB
-	states  map[string]string // monitorID → last known status
+	states  map[string]string
 	mu      sync.Mutex
 	onEvent func(Event)
 }
@@ -43,19 +43,26 @@ func New(database *db.DB, onEvent func(Event)) *Manager {
 }
 
 // Record processes a check result and emits an event if the status changed.
-func (m *Manager) Record(monitor *db.Monitor, result check.Result) {
+// If inMaintenance is true, state is updated in DB but no incidents are created
+// and no alert events are emitted.
+func (m *Manager) Record(monitor *db.Monitor, result check.Result, inMaintenance bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	prev, known := m.states[monitor.ID]
 	m.states[monitor.ID] = result.Status
 
-	if known && prev == result.Status {
-		return // no change
+	// Always update the DB status so the dashboard stays current.
+	m.db.UpdateMonitorStatus(monitor.ID, result.Status)
+
+	// During maintenance: skip incident creation and alerting.
+	if inMaintenance {
+		return
 	}
 
-	// Update the DB status.
-	m.db.UpdateMonitorStatus(monitor.ID, result.Status)
+	if known && prev == result.Status {
+		return
+	}
 
 	evt := Event{
 		Monitor: monitor,
@@ -70,7 +77,6 @@ func (m *Manager) Record(monitor *db.Monitor, result check.Result) {
 
 	case check.StatusDegraded:
 		evt.Type = EventDegraded
-		// Open an incident if there isn't one already.
 		if existing, _ := m.db.GetActiveIncidentForMonitor(monitor.ID); existing == nil {
 			inc := m.openIncident(monitor, result)
 			evt.Incident = inc

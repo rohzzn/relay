@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 </head>
 <body class="admin-layout">
   {{template "admin-nav" (dict "ActivePage" "settings")}}
@@ -17,16 +18,19 @@
     <header class="admin-header">
       <div>
         <h1 class="page-title">Settings</h1>
-        <p class="page-subtitle">Runtime configuration (set via environment variables)</p>
+        <p class="page-subtitle">Runtime configuration and API access</p>
       </div>
     </header>
 
-    <div class="form-page">
+    {{if .Flash}}
+    <div class="flash flash-{{index .Flash "kind"}}">{{index .Flash "message"}}</div>
+    {{end}}
+
+    <div class="form-page" style="max-width:800px">
+
       <!-- Site info -->
       <div class="card">
-        <div class="card-header">
-          <h2 class="card-title">Site</h2>
-        </div>
+        <div class="card-header"><h2 class="card-title">Site</h2></div>
         <div class="card-body">
           <dl class="settings-list">
             <div class="settings-row">
@@ -38,6 +42,10 @@
               <dd><code>{{.Config.SiteURL}}</code> <span class="settings-env">RELAY_SITE_URL</span></dd>
             </div>
             <div class="settings-row">
+              <dt>Footer Text</dt>
+              <dd>{{if .Config.FooterText}}<code>{{.Config.FooterText}}</code>{{else}}<span class="text-muted">Powered by Relay</span>{{end}} <span class="settings-env">RELAY_FOOTER_TEXT</span></dd>
+            </div>
+            <div class="settings-row">
               <dt>Admin User</dt>
               <dd><code>{{.Config.AdminUser}}</code> <span class="settings-env">RELAY_ADMIN_USER</span></dd>
             </div>
@@ -46,7 +54,7 @@
       </div>
 
       <!-- SMTP -->
-      <div class="card" style="margin-top:24px">
+      <div class="card" style="margin-top:20px">
         <div class="card-header">
           <h2 class="card-title">Email (SMTP)</h2>
           {{if .Config.SMTPHost}}
@@ -59,21 +67,23 @@
           <dl class="settings-list">
             <div class="settings-row">
               <dt>SMTP Host</dt>
-              <dd>{{if .Config.SMTPHost}}<code>{{.Config.SMTPHost}}:{{.Config.SMTPPort}}</code>{{else}}<span class="text-muted">Not set</span>{{end}} <span class="settings-env">RELAY_SMTP_HOST / RELAY_SMTP_PORT</span></dd>
+              <dd>{{if .Config.SMTPHost}}<code>{{.Config.SMTPHost}}:{{.Config.SMTPPort}}</code>{{else}}<span class="text-muted">Not set</span>{{end}} <span class="settings-env">RELAY_SMTP_HOST / PORT</span></dd>
             </div>
             <div class="settings-row">
               <dt>From Address</dt>
               <dd>{{if .Config.SMTPFrom}}<code>{{.Config.SMTPFrom}}</code>{{else}}<span class="text-muted">Not set</span>{{end}} <span class="settings-env">RELAY_SMTP_FROM</span></dd>
+            </div>
+            <div class="settings-row">
+              <dt>Subscribers</dt>
+              <dd><strong>{{.Subscribers}}</strong> confirmed</dd>
             </div>
           </dl>
         </div>
       </div>
 
       <!-- Monitoring -->
-      <div class="card" style="margin-top:24px">
-        <div class="card-header">
-          <h2 class="card-title">Monitoring</h2>
-        </div>
+      <div class="card" style="margin-top:20px">
+        <div class="card-header"><h2 class="card-title">Monitoring</h2></div>
         <div class="card-body">
           <dl class="settings-list">
             <div class="settings-row">
@@ -84,22 +94,98 @@
               <dt>History Retention</dt>
               <dd><code>{{.Config.RetentionDays}} days</code> <span class="settings-env">RELAY_RETENTION_DAYS</span></dd>
             </div>
-            <div class="settings-row">
-              <dt>Subscribers</dt>
-              <dd><strong>{{.Subscribers}}</strong> confirmed</dd>
-            </div>
           </dl>
         </div>
       </div>
 
-      <div class="info-box" style="margin-top:24px">
+      <!-- API Keys -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-header">
+          <h2 class="card-title">REST API Keys</h2>
+          <button class="btn btn-primary btn-sm" x-data x-on:click="$dispatch('open-create-key')">New Key</button>
+        </div>
+        <div class="card-body" style="padding:0">
+          {{if .APIKeys}}
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Created</th>
+                <th>Last Used</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {{range .APIKeys}}
+              <tr>
+                <td><strong>{{.Name}}</strong></td>
+                <td><span class="badge badge-role-{{.Role}}">{{roleLabel .Role}}</span></td>
+                <td class="text-muted">{{formatUnixTime .CreatedAt}}</td>
+                <td class="text-muted">{{if .LastUsedAt.Valid}}{{formatUnixTime .LastUsedAt.Int64}}{{else}}Never{{end}}</td>
+                <td>
+                  <form method="POST" action="/admin/api-keys/{{.ID}}/delete" style="display:inline">
+                    <button type="submit" class="btn btn-ghost btn-sm" onclick="return confirm('Revoke this API key?')">Revoke</button>
+                  </form>
+                </td>
+              </tr>
+              {{end}}
+            </tbody>
+          </table>
+          {{else}}
+          <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:.875rem">
+            No API keys yet. Create one to access the REST API programmatically.
+          </div>
+          {{end}}
+        </div>
+      </div>
+
+      <div class="info-box" style="margin-top:20px">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
-        Settings are configured via environment variables. See <code>.env.example</code> for all options.
+        Settings are configured via environment variables. API endpoint: <code>GET /api/v1/monitors</code> with <code>Authorization: Bearer &lt;key&gt;</code>
       </div>
     </div>
+
+    <!-- Create API key modal -->
+    <div class="modal-overlay" x-data="{open: false}"
+      x-on:open-create-key.window="open = true"
+      x-show="open" x-cloak>
+      <div class="modal-card" x-on:click.stop>
+        <div class="modal-header">
+          <h2 class="modal-title">Create API Key</h2>
+          <button class="modal-close" x-on:click="open = false">×</button>
+        </div>
+        <form method="POST" action="/admin/api-keys">
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">Key Name <span class="required">*</span></label>
+              <input type="text" name="name" class="form-input" placeholder="e.g. CI pipeline, Terraform" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Role</label>
+              <select name="role" class="form-select">
+                <option value="viewer">Viewer — read-only access</option>
+                <option value="editor">Editor — manage monitors and incidents</option>
+                <option value="admin">Admin — full access</option>
+              </select>
+            </div>
+            <div class="info-box" style="margin-top:0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              The raw key is shown once after creation. Store it securely — it cannot be retrieved later.
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" x-on:click="open = false">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create Key</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
   </main>
+  <script src="/static/app.js"></script>
 </body>
 </html>
 {{end}}

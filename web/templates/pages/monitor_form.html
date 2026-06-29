@@ -20,12 +20,27 @@
         <a href="/admin" class="breadcrumb">← Back to Dashboard</a>
         <h1 class="page-title">{{.Title}}</h1>
       </div>
+      {{if .Monitor}}
+      <button class="btn btn-ghost" id="test-btn" onclick="testMonitorPage('{{.Monitor.ID}}', this)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        Test Now
+      </button>
+      {{end}}
     </header>
 
+    {{if .Monitor}}
+    <div class="test-result-page" id="test-result-page" style="display:none"></div>
+    {{end}}
+
     <div class="form-page">
-      <form method="POST" action="{{.Action}}" x-data="{monType: '{{if .Monitor}}{{.Monitor.Type}}{{else}}http{{end}}'}" class="card">
+      <form method="POST" action="{{.Action}}"
+        x-data="{monType: '{{if .Monitor}}{{.Monitor.Type}}{{else}}http{{end}}'}"
+        class="card">
         <div class="card-body">
 
+          <div class="form-section-title" style="margin-top:0;padding-top:0;border-top:none">Basic</div>
           <div class="form-row">
             <div class="form-group">
               <label class="form-label" for="name">Monitor Name <span class="required">*</span></label>
@@ -36,11 +51,11 @@
             <div class="form-group">
               <label class="form-label" for="type">Monitor Type <span class="required">*</span></label>
               <select id="type" name="type" class="form-select" x-model="monType">
-                <option value="http" {{if .Monitor}}{{if eq .Monitor.Type "http"}}selected{{end}}{{end}}>HTTP / HTTPS</option>
-                <option value="tcp" {{if .Monitor}}{{if eq .Monitor.Type "tcp"}}selected{{end}}{{end}}>TCP Port</option>
-                <option value="tls" {{if .Monitor}}{{if eq .Monitor.Type "tls"}}selected{{end}}{{end}}>TLS Certificate</option>
+                <option value="http"      {{if .Monitor}}{{if eq .Monitor.Type "http"}}selected{{end}}{{end}}>HTTP / HTTPS</option>
+                <option value="tcp"       {{if .Monitor}}{{if eq .Monitor.Type "tcp"}}selected{{end}}{{end}}>TCP Port</option>
+                <option value="tls"       {{if .Monitor}}{{if eq .Monitor.Type "tls"}}selected{{end}}{{end}}>TLS Certificate</option>
                 <option value="dns"       {{if .Monitor}}{{if eq .Monitor.Type "dns"}}selected{{end}}{{end}}>DNS Lookup</option>
-              <option value="heartbeat" {{if .Monitor}}{{if eq .Monitor.Type "heartbeat"}}selected{{end}}{{end}}>Heartbeat (Cron)</option>
+                <option value="heartbeat" {{if .Monitor}}{{if eq .Monitor.Type "heartbeat"}}selected{{end}}{{end}}>Heartbeat (Cron)</option>
               </select>
             </div>
           </div>
@@ -49,9 +64,9 @@
             <label class="form-label" for="target">
               <span x-show="monType === 'http' || monType === 'https'">URL</span>
               <span x-show="monType === 'tcp'">Host:Port</span>
-              <span x-show="monType === 'tls'">Hostname (or hostname:port)</span>
+              <span x-show="monType === 'tls'">Hostname</span>
               <span x-show="monType === 'dns'">Hostname to resolve</span>
-              <span x-show="monType === 'heartbeat'">Heartbeat ID (auto-set to monitor ID)</span>
+              <span x-show="monType === 'heartbeat'">Heartbeat ID (auto-set)</span>
               <span class="required">*</span>
             </label>
             <input id="target" type="text" name="target" class="form-input"
@@ -61,16 +76,31 @@
 
           <div class="form-row">
             <div class="form-group">
+              <label class="form-label" for="group_name">Group / Category</label>
+              <input id="group_name" type="text" name="group_name" class="form-input"
+                value="{{if .Monitor}}{{.Monitor.GroupName}}{{end}}"
+                placeholder="e.g. API, Database, CDN">
+            </div>
+            <div class="form-group">
               <label class="form-label" for="interval_s">Check Interval (seconds)</label>
               <input id="interval_s" type="number" name="interval_s" class="form-input"
-                value="{{if .Monitor}}{{.Monitor.IntervalS}}{{else}}30{{end}}"
+                value="{{if .Monitor}}{{.Monitor.IntervalS}}{{else}}60{{end}}"
                 min="30" max="3600">
             </div>
+          </div>
+
+          <div class="form-row">
             <div class="form-group" x-show="monType !== 'heartbeat'">
               <label class="form-label" for="timeout_s">Timeout (seconds)</label>
               <input id="timeout_s" type="number" name="timeout_s" class="form-input"
                 value="{{if .Config}}{{index .Config "timeout_s"}}{{else}}30{{end}}"
                 min="1" max="60">
+            </div>
+            <div class="form-group" x-show="monType === 'http'">
+              <label class="form-label" for="max_latency_ms">Degraded threshold (ms, 0 = off)</label>
+              <input id="max_latency_ms" type="number" name="max_latency_ms" class="form-input"
+                value="{{if .Config}}{{index .Config "max_latency_ms"}}{{else}}0{{end}}"
+                min="0" placeholder="e.g. 2000">
             </div>
           </div>
 
@@ -115,6 +145,26 @@
             </div>
           </div>
 
+          <!-- Alert channel routing -->
+          {{if .AllChannels}}
+          <div class="form-section-title">Alert Channels</div>
+          <p class="form-hint">Select which channels fire for this monitor. Leave all unchecked to use all channels.</p>
+          <div class="channel-checkboxes">
+            {{range .AllChannels}}
+            {{$chanID := .ID}}
+            <label class="channel-checkbox-row">
+              <input type="checkbox" name="channel_ids" value="{{.ID}}"
+                {{range $.ChannelIDs}}{{if eq . $chanID}}checked{{end}}{{end}}>
+              <span class="channel-checkbox-icon channel-icon-{{.Type}}">
+                {{if eq .Type "slack"}}S{{else if eq .Type "email"}}@{{else if eq .Type "pagerduty"}}P{{else if eq .Type "opsgenie"}}O{{else}}W{{end}}
+              </span>
+              <span>{{.Name}}</span>
+              <span class="text-muted" style="font-size:.8rem;margin-left:4px">({{.Type}})</span>
+            </label>
+            {{end}}
+          </div>
+          {{end}}
+
         </div><!-- /card-body -->
 
         <div class="card-footer">
@@ -124,6 +174,27 @@
       </form>
     </div>
   </main>
+  <script src="/static/app.js"></script>
+  {{if .Monitor}}
+  <script>
+  function testMonitorPage(id, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Testing…';
+    fetch('/admin/monitors/' + id + '/test', {method: 'POST'})
+      .then(r => r.json())
+      .then(data => {
+        const el = document.getElementById('test-result-page');
+        el.style.display = '';
+        const cls = data.status === 'up' ? 'flash-success' : data.status === 'degraded' ? 'flash-info' : 'flash-error';
+        el.className = 'flash ' + cls;
+        el.innerHTML = `<strong>${data.status.toUpperCase()}</strong> — ${data.detail || '(no detail)'} ${data.latency_ms ? `<span style="margin-left:8px;font-family:monospace">${data.latency_ms}ms</span>` : ''}`;
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Test Now';
+      })
+      .catch(() => { btn.disabled = false; btn.textContent = 'Test Now'; });
+  }
+  </script>
+  {{end}}
 </body>
 </html>
 {{end}}

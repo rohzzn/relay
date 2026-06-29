@@ -1,0 +1,84 @@
+{{define "page-audit"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <title>Audit Log — {{.Site.Name}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="admin-layout">
+  {{template "admin-nav" (dict "ActivePage" "audit")}}
+
+  <main class="admin-main">
+    <header class="admin-header">
+      <div>
+        <h1 class="page-title">Audit Log</h1>
+        <p class="page-subtitle">Record of all admin actions — {{.Total}} entries</p>
+      </div>
+    </header>
+
+    <div class="card">
+      {{if .Entries}}
+      <div class="card-body" style="padding:0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Actor</th>
+              <th>Action</th>
+              <th>Entity</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .Entries}}
+            <tr>
+              <td class="text-muted audit-time">{{formatTime .CreatedAt}}</td>
+              <td>
+                <span class="actor-badge">{{.Actor}}</span>
+              </td>
+              <td>
+                <span class="audit-action audit-action-{{.Action}}">{{.Action}}</span>
+              </td>
+              <td class="text-muted">
+                <span class="audit-entity-type">{{.EntityType}}</span>
+              </td>
+              <td class="text-muted audit-detail">{{.Detail}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+
+      {{if gt .TotalPages 1}}
+      <div class="card-footer" style="justify-content:center;gap:8px">
+        {{if gt .Page 1}}
+        <a href="/admin/audit?page={{sub .Page 1}}" class="btn btn-ghost btn-sm">← Previous</a>
+        {{end}}
+        <span class="text-muted" style="font-size:.875rem">Page {{.Page}} of {{.TotalPages}}</span>
+        {{if lt .Page .TotalPages}}
+        <a href="/admin/audit?page={{add .Page 1}}" class="btn btn-ghost btn-sm">Next →</a>
+        {{end}}
+      </div>
+      {{end}}
+
+      {{else}}
+      <div class="card-body" style="text-align:center;color:var(--text-muted);padding:48px">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:12px;color:var(--gray-300)">
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <div>No audit entries yet.</div>
+      </div>
+      {{end}}
+    </div>
+
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
+{{end}}

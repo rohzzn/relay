@@ -35,7 +35,6 @@ func New(cfg *config.Config, database *db.DB, webFS fs.FS) (*Server, error) {
 	hub := newHub()
 	dispatcher := alert.New(database)
 
-	// s is created first so that closures below can capture it safely.
 	s := &Server{
 		cfg:        cfg,
 		db:         database,
@@ -44,15 +43,15 @@ func New(cfg *config.Config, database *db.DB, webFS fs.FS) (*Server, error) {
 		webFS:      webFS,
 	}
 
-	// State manager emits events when monitor status changes.
 	stateManager := state.New(database, func(evt state.Event) {
 		dispatcher.Dispatch(evt)
 		s.broadcastMonitorUpdate(evt.Monitor)
 	})
 
-	// Scheduler ticks per-monitor and feeds results into the state machine.
-	s.scheduler = scheduler.New(database, cfg.CheckConcurrency, func(m *db.Monitor, r check.Result) {
-		stateManager.Record(m, r)
+	s.scheduler = scheduler.New(database, cfg.CheckConcurrency, func(m *db.Monitor, r check.Result, inMaintenance bool) {
+		stateManager.Record(m, r, inMaintenance)
+		// Always broadcast visual update even during maintenance.
+		s.broadcastMonitorUpdate(m)
 	})
 
 	if err := s.parseTemplates(); err != nil {
@@ -73,7 +72,9 @@ func (s *Server) Start() error {
 		return fmt.Errorf("list monitors: %w", err)
 	}
 	for _, m := range monitors {
-		s.scheduler.Add(m)
+		if !m.Paused {
+			s.scheduler.Add(m)
+		}
 	}
 
 	addr := fmt.Sprintf(":%d", s.cfg.Port)
@@ -98,6 +99,7 @@ func (s *Server) routes() {
 
 	// Public routes
 	mux.HandleFunc("GET /{$}", s.handleStatus)
+	mux.HandleFunc("GET /history", s.handleHistory)
 	mux.HandleFunc("POST /subscribe", s.handleSubscribe)
 	mux.HandleFunc("GET /subscribe/confirm/{token}", s.handleSubscribeConfirm)
 	mux.HandleFunc("GET /unsubscribe/{token}", s.handleUnsubscribe)
@@ -117,6 +119,8 @@ func (s *Server) routes() {
 	mux.HandleFunc("GET /admin/monitors/{id}/edit", s.requireAuth(s.handleMonitorEdit))
 	mux.HandleFunc("POST /admin/monitors/{id}", s.requireAuth(s.handleMonitorUpdate))
 	mux.HandleFunc("POST /admin/monitors/{id}/delete", s.requireAuth(s.handleMonitorDelete))
+	mux.HandleFunc("POST /admin/monitors/{id}/pause", s.requireAuth(s.handleMonitorPause))
+	mux.HandleFunc("POST /admin/monitors/{id}/test", s.requireAuth(s.handleMonitorTest))
 
 	mux.HandleFunc("GET /admin/incidents", s.requireAuth(s.handleIncidents))
 	mux.HandleFunc("POST /admin/incidents", s.requireAuth(s.handleIncidentCreate))
@@ -126,14 +130,39 @@ func (s *Server) routes() {
 	mux.HandleFunc("GET /admin/channels", s.requireAuth(s.handleChannels))
 	mux.HandleFunc("POST /admin/channels", s.requireAuth(s.handleChannelCreate))
 	mux.HandleFunc("POST /admin/channels/{id}/delete", s.requireAuth(s.handleChannelDelete))
+	mux.HandleFunc("POST /admin/channels/{id}/test", s.requireAuth(s.handleChannelTest))
+
+	mux.HandleFunc("GET /admin/maintenance", s.requireAuth(s.handleMaintenance))
+	mux.HandleFunc("POST /admin/maintenance", s.requireAuth(s.handleMaintenanceCreate))
+	mux.HandleFunc("POST /admin/maintenance/{id}/delete", s.requireAuth(s.handleMaintenanceDelete))
+
+	mux.HandleFunc("GET /admin/users", s.requireAuth(s.handleUsers))
+	mux.HandleFunc("POST /admin/users", s.requireAuth(s.handleUserCreate))
+	mux.HandleFunc("POST /admin/users/{id}/delete", s.requireAuth(s.handleUserDelete))
+	mux.HandleFunc("POST /admin/users/{id}/role", s.requireAuth(s.handleUserRole))
+
+	mux.HandleFunc("GET /admin/audit", s.requireAuth(s.handleAuditLog))
 
 	mux.HandleFunc("GET /admin/settings", s.requireAuth(s.handleSettings))
 	mux.HandleFunc("POST /admin/settings", s.requireAuth(s.handleSettingsSave))
+	mux.HandleFunc("POST /admin/api-keys", s.requireAuth(s.handleAPIKeyCreate))
+	mux.HandleFunc("POST /admin/api-keys/{id}/delete", s.requireAuth(s.handleAPIKeyDelete))
+
+	// REST API v1 — authenticated via API key or session
+	mux.HandleFunc("GET /api/v1/status", s.requireAPIOrSession(s.handleAPIStatus))
+	mux.HandleFunc("GET /api/v1/monitors", s.requireAPIOrSession(s.handleAPIListMonitors))
+	mux.HandleFunc("GET /api/v1/monitors/{id}", s.requireAPIOrSession(s.handleAPIGetMonitor))
+	mux.HandleFunc("POST /api/v1/monitors", s.requireAPIOrSession(s.handleAPICreateMonitor))
+	mux.HandleFunc("PUT /api/v1/monitors/{id}", s.requireAPIOrSession(s.handleAPIUpdateMonitor))
+	mux.HandleFunc("DELETE /api/v1/monitors/{id}", s.requireAPIOrSession(s.handleAPIDeleteMonitor))
+	mux.HandleFunc("GET /api/v1/incidents", s.requireAPIOrSession(s.handleAPIListIncidents))
+	mux.HandleFunc("POST /api/v1/incidents", s.requireAPIOrSession(s.handleAPICreateIncident))
+	mux.HandleFunc("GET /api/v1/monitors/{id}/metrics", s.requireAPIOrSession(s.handleAPIMonitorMetrics))
 
 	// WebSocket (admin only)
 	mux.HandleFunc("GET /ws", s.requireAuth(s.hub.serveWS))
 
-	// Healthcheck (used by Docker)
+	// Healthcheck
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	})
@@ -181,12 +210,15 @@ func (s *Server) parseTemplates() error {
 				return "Down"
 			case "degraded":
 				return "Degraded"
+			case "paused":
+				return "Paused"
 			default:
 				return "Pending"
 			}
 		},
 		"add": func(a, b int) int { return a + b },
 		"sub": func(a, b int) int { return a - b },
+		"mul": func(a, b int) int { return a * b },
 		"dict": func(vals ...any) map[string]any {
 			m := make(map[string]any)
 			for i := 0; i+1 < len(vals); i += 2 {
@@ -194,7 +226,7 @@ func (s *Server) parseTemplates() error {
 			}
 			return m
 		},
-		"round": func(f float64) int { return int(math.Round(f)) },
+		"round":    func(f float64) int { return int(math.Round(f)) },
 		"safeHTML": func(s string) template.HTML { return template.HTML(s) },
 		"incidentStatusLabel": func(s string) string {
 			labels := map[string]string{
@@ -207,6 +239,38 @@ func (s *Server) parseTemplates() error {
 				return l
 			}
 			return s
+		},
+		"roleLabel": func(r string) string {
+			switch r {
+			case "admin":
+				return "Admin"
+			case "editor":
+				return "Editor"
+			default:
+				return "Viewer"
+			}
+		},
+		"formatUnixTime": func(ts int64) string {
+			if ts == 0 {
+				return "Never"
+			}
+			return time.Unix(ts, 0).Format("Jan 2, 2006 15:04")
+		},
+		"isActive": func(startsAt, endsAt int64) bool {
+			now := time.Now().Unix()
+			return startsAt <= now && endsAt >= now
+		},
+		"isFuture": func(startsAt int64) bool {
+			return startsAt > time.Now().Unix()
+		},
+		"initial": func(s string) string {
+			if s == "" {
+				return "?"
+			}
+			for _, r := range s {
+				return string(r)
+			}
+			return "?"
 		},
 	}
 
@@ -237,7 +301,6 @@ func (s *Server) renderFragment(name string, data any) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// broadcastMonitorUpdate pushes an HTML fragment for the given monitor to all WS clients.
 func (s *Server) broadcastMonitorUpdate(m *db.Monitor) {
 	mv, err := s.buildMonitorView(m)
 	if err != nil {
@@ -287,4 +350,3 @@ func formatDuration(d time.Duration) string {
 		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
 	}
 }
-

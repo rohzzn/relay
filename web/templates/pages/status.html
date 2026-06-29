@@ -6,6 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <title>{{.Site.Name}}</title>
+  <meta name="description" content="{{.Site.Name}} system status and uptime">
+  <meta property="og:title" content="{{.Site.Name}} Status">
+  <meta property="og:description" content="Real-time system status for {{.Site.Name}}">
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -14,7 +17,6 @@
 
   <div class="status-container">
 
-    <!-- Header -->
     <header class="status-header">
       <div class="status-brand">
         {{if .Site.Logo}}
@@ -29,6 +31,7 @@
         {{end}}
         <span class="status-site-name">{{.Site.Name}}</span>
       </div>
+      <a href="/history" class="status-history-link">Incident History →</a>
     </header>
 
     <!-- Overall status banner -->
@@ -94,15 +97,10 @@
     </section>
     {{end}}
 
-    <!-- Monitor list -->
+    <!-- Component groups -->
+    {{range .Groups}}
     <section class="status-section">
-      <h2 class="status-section-title">Components</h2>
-
-      {{if eq (len .Monitors) 0}}
-      <div class="status-card">
-        <p class="text-muted" style="text-align:center;padding:32px 0">No monitors configured yet.</p>
-      </div>
-      {{else}}
+      <h2 class="status-section-title">{{.Name}}</h2>
       <div class="component-list">
         {{range .Monitors}}
         <div class="component-row">
@@ -133,8 +131,16 @@
         </div>
         {{end}}
       </div>
-      {{end}}
     </section>
+    {{end}}
+
+    {{if eq (len .Groups) 0}}
+    <section class="status-section">
+      <div class="status-card">
+        <p class="text-muted" style="text-align:center;padding:32px 0">No monitors configured yet.</p>
+      </div>
+    </section>
+    {{end}}
 
     <!-- Subscribe -->
     <section class="status-section subscribe-section">
@@ -147,10 +153,10 @@
     </section>
 
     <footer class="status-footer">
-      <p>Powered by <a href="https://github.com/rohzzn/relay" target="_blank">Relay</a></p>
+      <p>{{.Site.FooterText}} · <a href="/history">Incident History</a></p>
     </footer>
 
-  </div><!-- /status-container -->
+  </div>
 </body>
 </html>
 {{end}}

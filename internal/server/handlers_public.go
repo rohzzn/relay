@@ -8,23 +8,29 @@ import (
 	"net/http"
 	"net/mail"
 	"net/smtp"
+	"strconv"
 
 	"github.com/rohzzn/relay/internal/db"
 )
 
 // ── Public status page ────────────────────────────────────────────────────────
 
-type StatusPageData struct {
-	Site          SiteData
-	OverallStatus string
-	Monitors      []*StatusMonitorView
-	Incidents     []*db.Incident
-}
-
 type StatusMonitorView struct {
 	*db.Monitor
 	UptimeDays []db.DayUptime
 	Uptime90d  float64
+}
+
+type StatusGroup struct {
+	Name     string
+	Monitors []*StatusMonitorView
+}
+
+type StatusPageData struct {
+	Site          SiteData
+	OverallStatus string
+	Groups        []StatusGroup
+	Incidents     []*db.Incident
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -34,31 +40,40 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	views := make([]*StatusMonitorView, 0, len(monitors))
 	overall := "operational"
-	hasDown := false
-	hasDegraded := false
+	groupMap := make(map[string][]*StatusMonitorView)
+	groupOrder := []string{}
 
 	for _, m := range monitors {
+		if m.Paused {
+			continue
+		}
 		days, _ := s.db.GetDailyUptime(m.ID, 90)
 		uptime := s.db.GetUptimePct(m.ID, 90)
-		views = append(views, &StatusMonitorView{
-			Monitor:    m,
-			UptimeDays: days,
-			Uptime90d:  uptime,
-		})
+		view := &StatusMonitorView{Monitor: m, UptimeDays: days, Uptime90d: uptime}
+
 		switch m.Status {
 		case "down":
-			hasDown = true
+			overall = "outage"
 		case "degraded":
-			hasDegraded = true
+			if overall != "outage" {
+				overall = "degraded"
+			}
 		}
+
+		group := m.GroupName
+		if group == "" {
+			group = "Services"
+		}
+		if _, exists := groupMap[group]; !exists {
+			groupOrder = append(groupOrder, group)
+		}
+		groupMap[group] = append(groupMap[group], view)
 	}
 
-	if hasDown {
-		overall = "outage"
-	} else if hasDegraded {
-		overall = "degraded"
+	groups := make([]StatusGroup, 0, len(groupMap))
+	for _, name := range groupOrder {
+		groups = append(groups, StatusGroup{Name: name, Monitors: groupMap[name]})
 	}
 
 	incidents, _ := s.db.ListIncidents(true)
@@ -66,8 +81,30 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "page-status", StatusPageData{
 		Site:          s.siteData(),
 		OverallStatus: overall,
-		Monitors:      views,
+		Groups:        groups,
 		Incidents:     incidents,
+	})
+}
+
+// ── Incident history (public) ─────────────────────────────────────────────────
+
+func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
+	page := 1
+	if p, err := strconv.Atoi(r.URL.Query().Get("page")); err == nil && p > 0 {
+		page = p
+	}
+	limit := 20
+	offset := (page - 1) * limit
+
+	incidents, total, _ := s.db.ListIncidentsPaged(limit, offset)
+	totalPages := (total + limit - 1) / limit
+
+	s.render(w, "page-history", map[string]any{
+		"Site":       s.siteData(),
+		"Incidents":  incidents,
+		"Page":       page,
+		"TotalPages": totalPages,
+		"Total":      total,
 	})
 }
 
@@ -94,14 +131,14 @@ func (s *Server) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 		Confirmed: 0,
 	}
 	if err := s.db.CreateSubscriber(sub); err != nil {
-		// If already subscribed, just redirect silently.
 		http.Redirect(w, r, "/?subscribed=1", http.StatusSeeOther)
 		return
 	}
 
-	// Send confirmation email if SMTP is configured.
 	if s.cfg.SMTPHost != "" {
 		go s.sendConfirmationEmail(email, token)
+	} else {
+		s.db.ConfirmSubscriber(token)
 	}
 
 	http.Redirect(w, r, "/?subscribed=1", http.StatusSeeOther)
@@ -126,7 +163,6 @@ func (s *Server) handleUnsubscribe(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) sendConfirmationEmail(email, token string) {
 	if s.cfg.SMTPHost == "" {
-		// No SMTP — auto-confirm so the feature works out of the box.
 		s.db.ConfirmSubscriber(token)
 		return
 	}

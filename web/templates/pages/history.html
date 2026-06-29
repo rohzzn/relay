@@ -1,0 +1,90 @@
+{{define "page-history"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <title>Incident History — {{.Site.Name}}</title>
+  <meta name="description" content="Past incidents and uptime history for {{.Site.Name}}">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="status-layout">
+  <div class="status-container">
+
+    <header class="status-header">
+      <div class="status-brand">
+        {{if .Site.Logo}}
+          <img src="{{.Site.Logo}}" alt="{{.Site.Name}}" class="status-logo">
+        {{else}}
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" fill="#6366f1" opacity="0.15"/>
+            <circle cx="12" cy="12" r="4" fill="#6366f1"/>
+            <path d="M12 2C6.48 2 2 6.48 2 12" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 22C17.52 22 22 17.52 22 12" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        {{end}}
+        <span class="status-site-name">{{.Site.Name}}</span>
+      </div>
+      <a href="/" class="status-history-link">← Current Status</a>
+    </header>
+
+    <div style="margin-bottom:32px">
+      <h1 style="font-size:1.5rem;font-weight:700;letter-spacing:-.025em;margin:0 0 4px">Incident History</h1>
+      <p style="color:var(--text-muted);margin:0;font-size:.9375rem">{{.Total}} total incidents</p>
+    </div>
+
+    {{if .Incidents}}
+    <div class="incident-list">
+      {{range .Incidents}}
+      <div class="incident-card incident-{{.Status}}">
+        <div class="incident-header">
+          <div class="incident-status-badge badge-{{.Status}}">{{incidentStatusLabel .Status}}</div>
+          <time class="incident-time">{{formatTime .StartedAt}}</time>
+        </div>
+        <h3 class="incident-title">{{.Title}}</h3>
+        {{if .Body.Valid}}
+        <div class="incident-body">{{.Body.String}}</div>
+        {{end}}
+        {{if .ResolvedAt.Valid}}
+        <div class="incident-resolved-at text-muted">
+          Resolved {{formatTime .ResolvedAt.Int64}}
+        </div>
+        {{end}}
+      </div>
+      {{end}}
+    </div>
+
+    {{if gt .TotalPages 1}}
+    <div class="history-pagination">
+      {{if gt .Page 1}}
+      <a href="/history?page={{sub .Page 1}}" class="btn btn-ghost">← Previous</a>
+      {{end}}
+      <span class="text-muted">Page {{.Page}} of {{.TotalPages}}</span>
+      {{if lt .Page .TotalPages}}
+      <a href="/history?page={{add .Page 1}}" class="btn btn-ghost">Next →</a>
+      {{end}}
+    </div>
+    {{end}}
+
+    {{else}}
+    <div class="empty-state" style="border:1px solid var(--border)">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      <h3>No incidents on record</h3>
+      <p>No past incidents found. That's a good thing.</p>
+    </div>
+    {{end}}
+
+    <footer class="status-footer">
+      <p>{{.Site.FooterText}}</p>
+    </footer>
+
+  </div>
+</body>
+</html>
+{{end}}
